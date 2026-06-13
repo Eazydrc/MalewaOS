@@ -49,6 +49,7 @@ npx ts-node --transpile-only seed-tiers.ts   # 4 comptes test, un par tier
 | `essentiel@test.cd` | ESSENTIEL | Le Bistro Moderne | `/r/test-resto-essentiel-001` |
 | `croissance@test.cd` | CROISSANCE | Pizza & Grill Kinshasa | `/r/test-resto-croissance-001` |
 | `domination@test.cd` | DOMINATION | Le Grand Fleuve | `/r/test-resto-domination-001` |
+| `client@test.cd` | CLIENT | — (compte client) | Réservations sur les 4 restaurants ci-dessus (statuts variés : PENDING/CONFIRMED/COMPLETED/CANCELLED/NO_SHOW) |
 
 ### Required services
 - PostgreSQL port 5432

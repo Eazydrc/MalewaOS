@@ -6,6 +6,9 @@
  *   essentiel@test.cd    / Test1234!  → ESSENTIEL    (10$/mois)
  *   croissance@test.cd   / Test1234!  → CROISSANCE   (25$/mois)
  *   domination@test.cd   / Test1234!  → DOMINATION   (45$/mois)
+ *
+ * + 1 compte client de test avec des réservations sur chacun des 4 restaurants :
+ *   client@test.cd       / Test1234!  → CLIENT
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -213,8 +216,49 @@ const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: str
 
 // ─── Script principal ─────────────────────────────────────────────────────────
 
+// ─── Réservations d'exemple par tier ──────────────────────────────────────────
+
+const RESERVATIONS: Record<SubscriptionTier, { daysOffset: number; hour: number; partySize: number; status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW'; notes?: string }[]> = {
+  MAMAN: [
+    { daysOffset: 2,  hour: 13, partySize: 2, status: 'CONFIRMED' },
+    { daysOffset: -5, hour: 12, partySize: 4, status: 'COMPLETED' },
+  ],
+  ESSENTIEL: [
+    { daysOffset: 1,  hour: 19, partySize: 3, status: 'PENDING', notes: 'Table près de la fenêtre si possible' },
+    { daysOffset: 4,  hour: 20, partySize: 2, status: 'CONFIRMED' },
+    { daysOffset: -3, hour: 13, partySize: 5, status: 'COMPLETED' },
+  ],
+  CROISSANCE: [
+    { daysOffset: 0,  hour: 20, partySize: 6, status: 'CONFIRMED', notes: 'Anniversaire — gâteau apporté' },
+    { daysOffset: -1, hour: 19, partySize: 2, status: 'NO_SHOW' },
+    { daysOffset: -7, hour: 12, partySize: 4, status: 'COMPLETED' },
+  ],
+  DOMINATION: [
+    { daysOffset: 3,  hour: 20, partySize: 2, status: 'CONFIRMED', notes: 'Dîner VIP — vue fleuve demandée' },
+    { daysOffset: 6,  hour: 21, partySize: 8, status: 'PENDING', notes: 'Groupe entreprise' },
+    { daysOffset: -2, hour: 20, partySize: 2, status: 'CANCELLED' },
+    { daysOffset: -10, hour: 19, partySize: 4, status: 'COMPLETED' },
+  ],
+};
+
 async function main() {
   const hash = await bcrypt.hash(PASSWORD, 10);
+
+  // Compte client de test, utilisé pour les réservations d'exemple
+  const clientUser = await prisma.user.upsert({
+    where: { id: 'test-user-client-001' },
+    update: { email: 'client@test.cd', password: hash, isActive: true },
+    create: {
+      id:        'test-user-client-001',
+      email:     'client@test.cd',
+      password:  hash,
+      firstName: 'Christelle',
+      lastName:  'Nzuzi',
+      role:      'CLIENT',
+      isActive:  true,
+    },
+  });
+  console.log(`▶ Compte client de test : ${clientUser.email}`);
 
   for (const tier of TIERS) {
     console.log(`\n▶ Création compte ${tier.subscription} — ${tier.email}`);
@@ -353,6 +397,28 @@ async function main() {
       }
       console.log(`    ✓ ${offers.length} offre(s) créée(s)`);
     }
+
+    // 5. Réservations d'exemple pour le compte client de test
+    await prisma.reservation.deleteMany({ where: { userId: clientUser.id, restaurantId: restaurant.id } });
+
+    const reservations = RESERVATIONS[tier.subscription];
+    for (const r of reservations) {
+      const date = new Date();
+      date.setDate(date.getDate() + r.daysOffset);
+      date.setHours(r.hour, 0, 0, 0);
+
+      await prisma.reservation.create({
+        data: {
+          userId:       clientUser.id,
+          restaurantId: restaurant.id,
+          date,
+          partySize:    r.partySize,
+          notes:        r.notes ?? null,
+          status:       r.status,
+        },
+      });
+    }
+    console.log(`    ✓ ${reservations.length} réservation(s) créée(s) pour ${clientUser.email}`);
   }
 
   console.log('\n✅ Seed terminé !\n');
@@ -361,6 +427,7 @@ async function main() {
   console.log('  essentiel@test.cd    / Test1234!  → ESSENTIEL    (http://localhost:4000/r/test-resto-essentiel-001)');
   console.log('  croissance@test.cd   / Test1234!  → CROISSANCE   (http://localhost:4000/r/test-resto-croissance-001)');
   console.log('  domination@test.cd   / Test1234!  → DOMINATION   (http://localhost:4000/r/test-resto-domination-001)');
+  console.log('  client@test.cd       / Test1234!  → CLIENT       (réservations sur les 4 restaurants ci-dessus)');
 }
 
 main()
