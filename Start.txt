@@ -1,0 +1,13 @@
+sur powel shell
+
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+terminal 1 
+
+cd "E:\Claude\001\agent Ia\Eazy tech\MalewaOS\api"
+npm run start:dev
+
+terminale 2
+
+cd "E:\Claude\001\agent Ia\Eazy tech\MalewaOS\app"
+npm run dev

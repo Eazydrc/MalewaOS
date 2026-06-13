@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Prisma generated client
+api/generated/
+
+# Uploads (local dev storage)
+api/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
+
+# Cookies / sensitive local files
+cookies.txt
+**/cookies.txt
+
+# Separate nested repo (own git history)
+/Elengi App/

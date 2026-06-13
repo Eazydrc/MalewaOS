@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where postgres *)",
+      "Bash(where psql *)",
+      "Bash(where redis-server *)",
+      "Bash(sc query *)",
+      "PowerShell(cd \"D:\\\\Taff\\\\Claude\\\\Nouveau dossier\\\\MalewaOS\"; \"API node_modules:\"; \\(Test-Path \"api\\\\node_modules\"\\); \\(Get-ChildItem \"api\\\\node_modules\" -Directory | Measure-Object\\).Count; \"APP node_modules:\"; \\(Test-Path \"app\\\\node_modules\"\\); \\(Get-ChildItem \"app\\\\node_modules\" -Directory | Measure-Object\\).Count; \"API .env:\"; Test-Path \"api\\\\.env\"; \"APP .env:\"; Test-Path \"app\\\\.env\")",
+      "Bash(npm -v)",
+      "PowerShell(Get-Command docker -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command npm -ErrorAction SilentlyContinue)",
+      "PowerShell($machinePath = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\); $userPath = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); $env:Path = $machinePath + \";\" + $userPath; cd \"D:\\\\Taff\\\\Claude\\\\Nouveau dossier\\\\MalewaOS\\\\api\"; npm install)",
+      "Bash(iconv -f UTF-16LE -t UTF-8 \"C:\\\\Users\\\\UserM\\\\AppData\\\\Local\\\\Packages\\\\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\\\\LocalState\\\\DiagOutputDir\\\\Memurai.MemuraiDeveloper.4.1.2-26-06-12-23-06-55.log\")",
+      "PowerShell(Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-Command','icacls C:\\\\Windows\\\\Temp /grant \"Utilisateurs:\\(AD,WD\\)\"; Write-Host \"DONE - press Enter to close\"; Read-Host')",
+      "Bash(npx prisma *)",
+      "PowerShell($env:PGPASSWORD=\"postgres\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -h localhost -d malewaos -c \"\\\\dt\")"
+    ]
+  }
+}

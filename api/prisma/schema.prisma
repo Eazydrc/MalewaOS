@@ -1,0 +1,502 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════
+
+enum Role {
+  CLIENT
+  RESTAURANT
+  ADMIN
+  SUPER_ADMIN
+  STAFF
+  LIVREUR
+}
+
+enum SubscriptionTier {
+  DECOUVERTE
+  MAMAN
+  ESSENTIEL
+  CROISSANCE
+  DOMINATION
+}
+
+enum CuisineType {
+  LOCALE
+  AFRICAINE
+  OCCIDENTALE
+  LIBANAISE
+  MEXICAINE
+  CHINOISE
+  JAPONAISE
+  INDIENNE
+  FASTFOOD
+  PIZZERIA
+  AUTRE
+}
+
+enum RestaurantType {
+  SUR_PLACE
+  LIVRAISON
+  LES_DEUX
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum TransactionType {
+  EARN
+  REDEEM
+  BONUS
+  EXPIRY
+  REFUND
+}
+
+enum OfferType {
+  PROMO
+  POINTS
+  FLASH
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  PACKAGING
+  OUT_FOR_DELIVERY
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+// ═══════════════════════════════════════════════════
+// ADRESSES (localisation structurée)
+// ═══════════════════════════════════════════════════
+
+model Address {
+  id         String   @id @default(cuid())
+  ville      String   @default("Kinshasa")
+  commune    String
+  quartier   String
+  numero     String?
+  reference  String?  // Ex: "En face de la pharmacie Mama Ngoli"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  users        User[]
+  restaurants  Restaurant[]
+
+  @@index([ville])
+  @@index([commune])
+}
+
+// ═══════════════════════════════════════════════════
+// USER
+// ═══════════════════════════════════════════════════
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String?  @unique
+  firstName String
+  lastName  String
+  password  String?
+  googleId  String?  @unique
+  avatarUrl String?
+  role          Role     @default(CLIENT)
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  points        Int      @default(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Adresse structurée (optionnelle)
+  addressId String?
+  address   Address? @relation(fields: [addressId], references: [id])
+
+  refreshTokens      RefreshToken[]
+  reservations       Reservation[]
+  transactions       PointTransaction[]
+  restaurants        Restaurant[]
+  reviews            Review[]
+  orders             Order[]
+  driverOrders       Order[]             @relation("DriverOrders")
+  staffProfile       StaffMember?
+  pushSubscriptions  PushSubscription[]
+  payments           PaymentTransaction[]
+
+  @@index([email])
+  @@index([googleId])
+  @@index([role])
+}
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ═══════════════════════════════════════════════════
+// RESTAURANT
+// ═══════════════════════════════════════════════════
+
+model Restaurant {
+  id           String           @id @default(cuid())
+  ownerId      String
+  name         String
+  description  String?
+  categories   String[]
+  phone        String?
+  address      String           // adresse textuelle (rétrocompatibilité)
+  city         String           @default("Kinshasa")
+  imageUrl     String?
+  images       String[]
+  priceRange   Int              @default(2)
+  rating       Float            @default(0)
+  reviewCount  Int              @default(0)
+  isOpen        Boolean          @default(true)
+  isActive      Boolean          @default(true)
+  openingHours  Json?            // { lun:{open:"08:00",close:"22:00",closed:false}, ... }
+
+  subscription          SubscriptionTier @default(MAMAN)
+  subscriptionExpiresAt DateTime?
+
+  // Classification
+  cuisine        CuisineType    @default(AUTRE)
+  restaurantType RestaurantType @default(SUR_PLACE)
+
+  // Géolocalisation
+  lat  Float?
+  lng  Float?
+
+  // DOMINATION — design complet
+  primaryColor   String?
+  accentColor    String?
+  secondaryColor String?
+  textColor      String?
+  bgColor        String?
+  customLogoUrl  String?
+  heroImageUrl   String?
+  tagline        String?
+  story          String?
+  font           String?
+  gallery        String[]
+  subdomain      String?  @unique
+  bannerText     String?
+  bannerImageUrl String?
+  bannerCtaText  String?
+
+  // Plat du jour — compteur mensuel
+  dailySpecialDaysUsed Int      @default(0)
+  dailySpecialResetAt  DateTime?
+
+  // Adresse structurée (optionnelle — complète l'adresse textuelle)
+  addressId         String?
+  structuredAddress Address? @relation(fields: [addressId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        User               @relation(fields: [ownerId], references: [id])
+  reservations Reservation[]
+  menus        Menu[]
+  offers       Offer[]
+  reviews      Review[]
+  orders       Order[]
+  tables       RestaurantTable[]
+  staff        StaffMember[]
+  payments     PaymentTransaction[]
+
+  @@index([ownerId])
+  @@index([city])
+  @@index([cuisine])
+  @@index([restaurantType])
+  @@index([lat, lng])
+}
+
+model StaffMember {
+  id           String     @id @default(cuid())
+  restaurantId String
+  firstName    String
+  lastName     String
+  role         String     @default("SERVEUR")
+  phone        String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  userId       String?    @unique
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ═══════════════════════════════════════════════════
+// MENU
+// ═══════════════════════════════════════════════════
+
+model Menu {
+  id           String        @id @default(cuid())
+  restaurantId String
+  name         String        @default("Menu principal")
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  sections     MenuSection[]
+
+  @@index([restaurantId])
+}
+
+model MenuSection {
+  id     String     @id @default(cuid())
+  menuId String
+  title  String
+  order  Int        @default(0)
+
+  menu   Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  items  MenuItem[]
+
+  @@index([menuId])
+}
+
+model MenuItem {
+  id            String      @id @default(cuid())
+  sectionId     String
+  name          String
+  description   String?
+  priceUsdCents Int
+  promoPrice    Int?
+  imageUrl      String?
+  isAvailable        Boolean   @default(true)
+  isHot              Boolean   @default(false)
+  isLastUnits        Boolean   @default(false)
+  isDailySpecial     Boolean   @default(false)
+  dailySpecialEndsAt DateTime?
+  order              Int       @default(0)
+
+  section       MenuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+// ═══════════════════════════════════════════════════
+// RÉSERVATION
+// ═══════════════════════════════════════════════════
+
+model Reservation {
+  id           String            @id @default(cuid())
+  userId       String
+  restaurantId String
+  date         DateTime
+  partySize    Int
+  notes        String?
+  status       ReservationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id])
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([date])
+  @@index([status])
+}
+
+// ═══════════════════════════════════════════════════
+// POINTS / WALLET
+// ═══════════════════════════════════════════════════
+
+model PointTransaction {
+  id        String          @id @default(cuid())
+  userId    String
+  amount    Int
+  type      TransactionType
+  reason    String
+  createdAt DateTime        @default(now())
+
+  user      User            @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════
+// COMMANDES (CROISSANCE + DOMINATION uniquement)
+// ═══════════════════════════════════════════════════
+
+model RestaurantTable {
+  id           String     @id @default(cuid())
+  restaurantId String
+  number       Int
+  label        String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([restaurantId, number])
+  @@index([restaurantId])
+}
+
+model Order {
+  id           String           @id @default(cuid())
+  userId       String
+  restaurantId String
+  tableId      String?
+  status       OrderStatus      @default(PENDING)
+  totalCents   Int
+  notes        String?
+
+  // Livraison
+  deliveryAddress  String?   // adresse saisie par le client
+  deliveryLat      Float?    // coordonnées GPS du client (optionnel)
+  deliveryLng      Float?
+
+  // Livreur assigné
+  assignedDriverId  String?
+  assignedDriver    User?     @relation("DriverOrders", fields: [assignedDriverId], references: [id])
+
+  // Position GPS livreur (polling temps réel)
+  driverLat        Float?
+  driverLng        Float?
+  driverLastSeen   DateTime?
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id])
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id])
+  table        RestaurantTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  items        OrderItem[]
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([status])
+  @@index([assignedDriverId])
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  menuItemId    String
+  name          String
+  priceUsdCents Int
+  quantity      Int
+  notes         String?
+
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// ═══════════════════════════════════════════════════
+// OFFRES
+// ═══════════════════════════════════════════════════
+
+model Offer {
+  id           String     @id @default(cuid())
+  restaurantId String
+  title        String
+  description  String
+  type         OfferType
+  discountPct  Int?
+  pointsCost   Int?
+  expiresAt    DateTime
+  maxUses      Int?
+  usedCount    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ═══════════════════════════════════════════════════
+// AVIS
+// ═══════════════════════════════════════════════════
+
+model Review {
+  id           String     @id @default(cuid())
+  userId       String
+  restaurantId String
+  rating       Int
+  comment      String?
+  ownerReply   String?
+  repliedAt    DateTime?
+  isPublished  Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId])
+}
+
+// ═══════════════════════════════════════════════════
+// NOTIFICATIONS PUSH (Web Push API / VAPID)
+// ═══════════════════════════════════════════════════
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════
+// PAIEMENTS ABONNEMENT (CinetPay)
+// ═══════════════════════════════════════════════════
+
+model PaymentTransaction {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  userId        String
+  tier          String   // MAMAN, ESSENTIEL, CROISSANCE, DOMINATION
+  amountUsd     Int      // en cents
+  transactionId String   @unique
+  status        String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  cinetpayRef   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id])
+  user          User       @relation(fields: [userId], references: [id])
+
+  @@index([restaurantId])
+  @@index([userId])
+}
