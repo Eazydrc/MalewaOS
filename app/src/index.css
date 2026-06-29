@@ -28,21 +28,21 @@
   --color-warning-soft:  255 251 235;
   --color-dark:          9 9 11;
 
-  /* Ombres */
-  --shadow-card:       0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.06), inset 0 1px 0 rgb(255 255 255 / 0.80);
-  --shadow-card-hover: 0 4px 6px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.10), inset 0 1px 0 rgb(255 255 255 / 0.90);
-  --shadow-input:      0 0 0 3px rgb(232 93 38 / 0.14), 0 1px 2px rgb(0 0 0 / 0.06);
-  --shadow-input-err:  0 0 0 3px rgb(220 38 38 / 0.14), 0 1px 2px rgb(0 0 0 / 0.06);
-  --shadow-btn:        0 1px 2px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.10);
-  --shadow-btn-hover:  0 4px 12px rgb(0 0 0 / 0.20), inset 0 1px 0 rgb(255 255 255 / 0.12);
-  --shadow-pill:       0 1px 3px rgb(0 0 0 / 0.08);
+  /* Ombres — minimales et plates, façon Uber Eats */
+  --shadow-card:       0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-card-hover: 0 2px 8px rgb(0 0 0 / 0.10);
+  --shadow-input:      0 0 0 2px rgb(232 93 38 / 0.16);
+  --shadow-input-err:  0 0 0 2px rgb(220 38 38 / 0.16);
+  --shadow-btn:        none;
+  --shadow-btn-hover:  none;
+  --shadow-pill:       none;
   --shadow-modal:      0 8px 16px rgb(0 0 0 / 0.08), 0 24px 48px rgb(0 0 0 / 0.12);
   --shadow-glow-accent:0 0 0 3px rgb(232 93 38 / 0.20), 0 4px 16px rgb(232 93 38 / 0.16);
 
-  /* Gradients */
-  --btn-primary:       linear-gradient(180deg, #1A1A1E 0%, #09090B 100%);
-  --surface-gradient:  linear-gradient(160deg, #FEFEFE 0%, #F2F2F8 100%);
-  --card-gradient:     linear-gradient(180deg, rgb(255 255 255 / 0.70) 0%, rgb(249 249 251 / 0.90) 100%);
+  /* Aplats — plus de dégradés, noir plein façon Uber Eats */
+  --btn-primary:       linear-gradient(0deg, #09090B 0%, #09090B 100%);
+  --surface-gradient:  linear-gradient(0deg, #FEFEFE 0%, #FEFEFE 100%);
+  --card-gradient:     linear-gradient(0deg, #FFFFFF 0%, #FFFFFF 100%);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -70,21 +70,21 @@
   --color-warning-soft:  50 26 3;
   --color-dark:          248 248 252;
 
-  /* Ombres dark — plus intenses */
-  --shadow-card:       0 1px 3px rgb(0 0 0 / 0.30), 0 2px 12px rgb(0 0 0 / 0.40), inset 0 1px 0 rgb(255 255 255 / 0.04);
-  --shadow-card-hover: 0 4px 8px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.50), inset 0 1px 0 rgb(255 255 255 / 0.06);
-  --shadow-input:      0 0 0 3px rgb(232 93 38 / 0.20), 0 1px 3px rgb(0 0 0 / 0.30);
-  --shadow-input-err:  0 0 0 3px rgb(220 38 38 / 0.20), 0 1px 3px rgb(0 0 0 / 0.30);
-  --shadow-btn:        0 1px 3px rgb(0 0 0 / 0.40), inset 0 1px 0 rgb(255 255 255 / 0.06);
-  --shadow-btn-hover:  0 4px 16px rgb(0 0 0 / 0.50), inset 0 1px 0 rgb(255 255 255 / 0.08);
-  --shadow-pill:       0 1px 4px rgb(0 0 0 / 0.30);
+  /* Ombres dark — minimales et plates */
+  --shadow-card:       0 1px 2px rgb(0 0 0 / 0.40);
+  --shadow-card-hover: 0 2px 10px rgb(0 0 0 / 0.50);
+  --shadow-input:      0 0 0 2px rgb(232 93 38 / 0.22);
+  --shadow-input-err:  0 0 0 2px rgb(220 38 38 / 0.22);
+  --shadow-btn:        none;
+  --shadow-btn-hover:  none;
+  --shadow-pill:       none;
   --shadow-modal:      0 8px 20px rgb(0 0 0 / 0.40), 0 32px 64px rgb(0 0 0 / 0.50);
   --shadow-glow-accent:0 0 0 3px rgb(232 93 38 / 0.25), 0 4px 20px rgb(232 93 38 / 0.20);
 
-  /* Gradients dark */
-  --btn-primary:      linear-gradient(180deg, #F8F8FC 0%, #E8E8F0 100%);
-  --surface-gradient: linear-gradient(160deg, #0A0A0E 0%, #0E0E16 100%);
-  --card-gradient:    linear-gradient(180deg, rgb(22 22 30 / 0.80) 0%, rgb(16 16 22 / 0.95) 100%);
+  /* Aplats dark — blanc plein pour le bouton principal, fonds unis */
+  --btn-primary:      linear-gradient(0deg, #F8F8FC 0%, #F8F8FC 100%);
+  --surface-gradient: linear-gradient(0deg, #0A0A0E 0%, #0A0A0E 100%);
+  --card-gradient:    linear-gradient(0deg, #10101A 0%, #10101A 100%);
 }
 
 /* ═══════════════════════════════════════════════════════
