@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
+import { Toggle } from "@/components/ui/Toggle";
 import { Input } from "@/components/ui/Input";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
@@ -148,10 +149,7 @@ export function InfosTab({ r }: { r: Restaurant }) {
           <p className="text-sm font-semibold text-text">Restaurant ouvert</p>
           <p className="text-xs text-text-3 mt-0.5">Visible dans les recherches</p>
         </div>
-        <button type="button" onClick={() => setOpen(v => !v)}
-          className={`relative w-11 h-6 rounded-full transition-colors ${isOpen ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}>
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOpen ? "translate-x-5" : "translate-x-0.5"}`} />
-        </button>
+        <Toggle checked={isOpen} onChange={() => setOpen(v => !v)} aria-label="Restaurant ouvert" />
       </div>
 
       {/* Type de service */}

@@ -15,6 +15,12 @@ export class TablesController {
     return this.tables.getPublicTable(tableId);
   }
 
+  /** Public — liste des tables d'un restaurant (pour choisir "sur place" depuis l'appli) */
+  @Get('restaurant/:restaurantId')
+  findPublicByRestaurant(@Param('restaurantId') restaurantId: string) {
+    return this.tables.findPublicByRestaurant(restaurantId);
+  }
+
   /** Owner — list tables */
   @UseGuards(JwtAuthGuard)
   @Get('mine')

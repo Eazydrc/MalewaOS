@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useAvailableDrivers } from "@/hooks/useDelivery";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { PackageIcon, LockIcon } from "@/components/ui/Icon";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -101,30 +101,6 @@ const STATUS_LABEL: Record<string, string> = {
   DELIVERED: "Livrée",
 };
 
-// Statut suivant pour chaque état (commandes)
-const ORDER_NEXT: Record<string, { label: string; status: string; color: string } | null> = {
-  PENDING:          { label: "✅ Accepter",         status: "ACCEPTED",         color: "bg-blue-500 text-white" },
-  ACCEPTED:         { label: "👨‍🍳 En cuisine",      status: "PREPARING",        color: "bg-purple-500 text-white" },
-  PREPARING:        { label: "📦 Emballage",        status: "PACKAGING",        color: "bg-orange-500 text-white" },
-  PACKAGING:        { label: "🛵 En livraison",     status: "OUT_FOR_DELIVERY", color: "bg-indigo-500 text-white" },
-  OUT_FOR_DELIVERY: { label: "✔ Livrée",            status: "DELIVERED",        color: "bg-green-600 text-white" },
-  READY:            { label: "✔ Livrée / Servie",   status: "DELIVERED",        color: "bg-zinc-600 text-white" },
-  DELIVERED:        null,
-  CANCELLED:        null,
-};
-
-// Labels d'affichage statut commande
-const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING:          "⏳ En attente",
-  ACCEPTED:         "✅ Acceptée",
-  PREPARING:        "👨‍🍳 En cuisine",
-  PACKAGING:        "📦 Emballage",
-  OUT_FOR_DELIVERY: "🛵 En livraison",
-  READY:            "🔔 Prête",
-  DELIVERED:        "✔ Livrée",
-  CANCELLED:        "❌ Annulée",
-};
-
 // Statut suivant pour réservations
 const RES_NEXT: Record<string, { label: string; status: string; color: string } | null> = {
   PENDING:   { label: "✅ Confirmer",  status: "CONFIRMED", color: "bg-green-500 text-white" },
@@ -134,7 +110,7 @@ const RES_NEXT: Record<string, { label: string; status: string; color: string } 
   NO_SHOW:   null,
 };
 
-type Tab = "overview" | "reservations" | "orders";
+type Tab = "overview" | "reservations";
 
 // ── Notification Banner ───────────────────────────────────────────────────────
 
@@ -223,28 +199,12 @@ export default function RestaurantDashboardPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant-reservations"] }),
   });
 
-  // Mise à jour statut commande
-  const updateOrderStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch(`/orders/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant-orders"] }),
-  });
-
   // Annuler réservation
   const cancelRes = useMutation({
     mutationFn: (id: string) =>
       api.patch(`/reservations/${id}/status`, { status: "CANCELLED" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant-reservations"] }),
   });
-
-  // Assigner un livreur
-  const assignDriver = useMutation({
-    mutationFn: ({ orderId, driverId }: { orderId: string; driverId: string }) =>
-      api.patch(`/orders/${orderId}/assign-driver`, { driverId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["restaurant-orders"] }),
-  });
-
-  const { data: availableDrivers = [] } = useAvailableDrivers();
 
   if (!user || (user.role !== "RESTAURANT" && user.role !== "ADMIN")) {
     return (
@@ -325,66 +285,37 @@ export default function RestaurantDashboardPage() {
         {/* 3 colonnes */}
         <div className="grid grid-cols-3 gap-6">
 
-          {/* ── Colonne 1 : Commandes live ── */}
+          {/* ── Colonne 1 : Accès Commandes ── */}
           <div className="col-span-1 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-text flex items-center gap-2">
-                <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                Commandes live
-              </h2>
-              <span className="text-xs text-text-3">{activeOrders.length} actives</span>
-            </div>
+            <h2 className="font-bold text-text flex items-center gap-2">
+              <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+              Commandes
+            </h2>
 
-            {loadingOrders ? (
-              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-28 rounded-xl bg-surface-2 animate-pulse" />)}</div>
-            ) : !hasOrdering ? (
+            {!hasOrdering ? (
               <div className="card p-5 text-center space-y-2">
-                <p className="text-2xl">🔒</p>
+                <LockIcon size={22} className="mx-auto text-text-3" />
                 <p className="text-xs text-text-3">Pack ESSENTIEL+ requis</p>
                 <button onClick={() => navigate("/abonnement")} className="text-xs text-accent underline">Passer au pack supérieur</button>
               </div>
-            ) : activeOrders.length === 0 ? (
-              <div className="card p-5 text-center space-y-2">
-                <p className="text-2xl">✅</p>
-                <p className="text-xs text-text-3">Aucune commande en cours</p>
-              </div>
             ) : (
-              <div className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
-                {activeOrders.map((o: any) => {
-                  const nextAction = ORDER_NEXT[o.status] ?? null;
-                  return (
-                    <div key={o.id} className={`card p-3 space-y-2 ${o.status === 'PENDING' ? 'ring-1 ring-yellow-400/50 bg-yellow-50/30 dark:bg-yellow-950/10' : ''}`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-text">{o.user?.firstName} {o.user?.lastName}</p>
-                          <p className="text-[10px] text-text-3">{new Date(o.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
-                        </div>
-                        <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${STATUS_COLORS[o.status] ?? ''}`}>
-                          {STATUS_LABEL[o.status] ?? o.status}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-text-3 space-y-0.5">
-                        {(o.items ?? []).slice(0, 3).map((item: any) => (
-                          <div key={item.id}>× {item.quantity} {item.name}</div>
-                        ))}
-                        {(o.items ?? []).length > 3 && <div>+{(o.items).length - 3} autres…</div>}
-                      </div>
-                      {o.deliveryAddress && (
-                        <p className="text-[10px] text-blue-500 truncate">📍 {o.deliveryAddress}</p>
-                      )}
-                      {nextAction && (
-                        <button
-                          onClick={() => updateOrderStatus.mutate({ id: o.id, status: nextAction.status })}
-                          disabled={updateOrderStatus.isPending}
-                          className={`w-full py-1.5 rounded-lg text-[11px] font-bold ${nextAction.color} disabled:opacity-50`}
-                        >
-                          {nextAction.label}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <button
+                onClick={() => navigate("/commandes")}
+                className="w-full card p-6 flex flex-col items-center gap-2 text-center hover:bg-surface-2 transition-colors relative"
+              >
+                {activeOrders.length > 0 && (
+                  <span className="absolute top-3 right-3 min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center animate-pulse">
+                    {activeOrders.length}
+                  </span>
+                )}
+                <PackageIcon size={28} className="text-accent" />
+                <p className="text-sm font-bold text-text">Ouvrir l'écran de réception</p>
+                <p className="text-xs text-text-3">
+                  {loadingOrders ? "Chargement…" : activeOrders.length > 0
+                    ? `${activeOrders.length} commande${activeOrders.length > 1 ? "s" : ""} en cours`
+                    : "Aucune commande en cours"}
+                </p>
+              </button>
             )}
           </div>
 
@@ -479,9 +410,9 @@ export default function RestaurantDashboardPage() {
             <div className="card p-3 space-y-1">
               <p className="text-xs font-semibold text-text-3 uppercase tracking-wider mb-2">Accès rapide</p>
               {[
-                { label: '🍽️ Gérer le menu',      to: '/mon-restaurant' },
-                { label: '📊 Analytics',           to: '/mon-restaurant' },
-                { label: '👥 Personnel',           to: '/mon-restaurant' },
+                { label: '🍽️ Gérer le menu',      to: '/mon-restaurant?tab=menu' },
+                { label: '📊 Analytics',           to: '/mon-restaurant?tab=analytics' },
+                { label: '👥 Personnel',           to: '/mon-restaurant?tab=personnel' },
                 { label: '💳 Mon abonnement',      to: '/abonnement' },
               ].map(l => (
                 <button
@@ -563,7 +494,7 @@ export default function RestaurantDashboardPage() {
                 value: !hasOrdering ? "🔒" : loadingOrders ? "…" : String(orders.length || "0"),
                 sub: !hasOrdering ? "Essentiel+" : pendingOrders > 0 ? `${pendingOrders} en attente` : "total",
                 icon: <OrderIcon size={14} />,
-                onClick: hasOrdering ? () => setTab("orders") : undefined,
+                onClick: hasOrdering ? () => navigate("/commandes") : undefined,
                 urgent: pendingOrders > 0,
               },
             ].map(s => (
@@ -617,12 +548,12 @@ export default function RestaurantDashboardPage() {
         </button>
 
         <button
-          onClick={() => hasOrdering ? setTab("orders") : undefined}
-          className={`card p-3 flex flex-col items-center gap-1.5 text-center active:scale-[0.97] transition-transform no-tap relative ${!hasOrdering ? "opacity-50" : ""} ${tab === "orders" ? "ring-1 ring-accent" : ""}`}
+          onClick={() => hasOrdering ? navigate("/commandes") : undefined}
+          className={`card p-3 flex flex-col items-center gap-1.5 text-center active:scale-[0.97] transition-transform no-tap relative ${!hasOrdering ? "opacity-50" : ""}`}
         >
-          {pendingOrders > 0 && (
+          {activeOrders.length > 0 && (
             <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-              {pendingOrders}
+              {activeOrders.length}
             </span>
           )}
           <span className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
@@ -685,7 +616,7 @@ export default function RestaurantDashboardPage() {
           )}
           {pendingOrders > 0 && hasOrdering && (
             <button
-              onClick={() => setTab("orders")}
+              onClick={() => navigate("/commandes")}
               className="w-full card p-3.5 flex items-center gap-3 text-left ring-1 ring-orange-400/40 bg-orange-50/50 dark:bg-orange-950/10 active:scale-[0.98] transition-transform no-tap"
             >
               <span className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-lg shrink-0">🛍️</span>
@@ -706,7 +637,6 @@ export default function RestaurantDashboardPage() {
         {([
           { id: "overview",     label: "Aperçu" },
           { id: "reservations", label: "Réservations" },
-          ...(hasOrdering ? [{ id: "orders", label: "Commandes" }] : []),
         ] as { id: Tab; label: string }[]).map(t => (
           <button
             key={t.id}
@@ -745,7 +675,7 @@ export default function RestaurantDashboardPage() {
             </button>
             {hasOrdering && (
               <button
-                onClick={() => setTab("orders")}
+                onClick={() => navigate("/commandes")}
                 className="w-full flex items-center justify-between py-2"
               >
                 <div className="flex items-center gap-3">
@@ -858,134 +788,6 @@ export default function RestaurantDashboardPage() {
       )}
 
       {/* ── Commandes ── */}
-      {tab === "orders" && hasOrdering && (
-        <div className="space-y-3">
-          {/* Légende flow cuisine */}
-          <div className="card p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-800/30">
-            <p className="text-[11px] text-orange-700 dark:text-orange-400 font-medium">
-              🍳 Flow cuisine : <span className="font-bold">En attente → Acceptée → En préparation → Prête → Livrée</span>
-            </p>
-          </div>
-
-          {loadingOrders ? (
-            <div className="space-y-3 animate-pulse">
-              {[1,2,3].map(i => <div key={i} className="card h-32 bg-surface-2" />)}
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="card p-6 text-center space-y-3">
-              <p className="text-3xl">🛍️</p>
-              <div>
-                <p className="text-sm font-bold text-text">Aucune commande</p>
-                <p className="text-xs text-text-3 mt-1">Partagez votre menu QR pour recevoir des commandes</p>
-              </div>
-              <button
-                onClick={() => navigate("/mon-restaurant")}
-                className="mx-auto flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-bold hover:bg-accent/20 transition-colors"
-              >
-                📲 Voir mon QR code
-              </button>
-            </div>
-          ) : (
-            orders.map((o: any) => {
-              const nextAction = ORDER_NEXT[o.status] ?? null;
-              return (
-                <div key={o.id} className={`card p-4 space-y-3 ${o.status === "PENDING" ? "ring-1 ring-yellow-400/40" : ""}`}>
-                  {/* En-tête */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-text">
-                        {o.user?.firstName} {o.user?.lastName}
-                      </p>
-                      <p className="text-xs text-text-3 mt-0.5">
-                        {new Date(o.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[o.status] ?? ""}`}>
-                      {STATUS_LABEL[o.status] ?? o.status}
-                    </span>
-                  </div>
-
-                  {/* Items */}
-                  <div className="space-y-1 bg-surface-2 rounded-xl p-3">
-                    {(o.items ?? []).map((item: any) => (
-                      <div key={item.id} className="flex justify-between text-xs">
-                        <span className="text-text-2 font-medium">× {item.quantity} {item.name}</span>
-                        <span className="text-text-3">${((item.priceUsdCents * item.quantity) / 100).toFixed(2)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between pt-2 border-t border-border mt-1">
-                      <span className="text-xs font-bold text-text">Total</span>
-                      <span className="text-sm font-black text-accent">${(o.totalCents / 100).toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {o.notes && <p className="text-xs text-text-3 italic">Note : "{o.notes}"</p>}
-
-                  {/* Adresse livraison */}
-                  {o.deliveryAddress && (
-                    <div className="rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-2.5 space-y-1">
-                      <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">📍 Livraison</p>
-                      <p className="text-xs text-text-2">{o.deliveryAddress}</p>
-                    </div>
-                  )}
-
-                  {/* Assigner livreur */}
-                  {o.deliveryAddress && !o.assignedDriverId && availableDrivers.length > 0 && ['ACCEPTED','PREPARING','PACKAGING'].includes(o.status) && (
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] font-bold text-text-3 uppercase tracking-wider">Assigner un livreur</p>
-                      <div className="flex gap-2">
-                        <select
-                          defaultValue=""
-                          onChange={e => {
-                            if (e.target.value) assignDriver.mutate({ orderId: o.id, driverId: e.target.value });
-                          }}
-                          className="flex-1 text-xs px-2 py-2 rounded-xl border border-border bg-surface text-text focus:outline-none focus:ring-1 focus:ring-accent"
-                        >
-                          <option value="">Choisir un livreur…</option>
-                          {availableDrivers.map((d: any) => (
-                            <option key={d.id} value={d.id}>
-                              {d.firstName} {d.lastName}{d.phone ? ` · ${d.phone}` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Livreur assigné */}
-                  {o.assignedDriver && (
-                    <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 p-2.5 flex items-center gap-2">
-                      <span className="text-lg">🛵</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-text truncate">
-                          {o.assignedDriver.firstName} {o.assignedDriver.lastName}
-                        </p>
-                        {o.assignedDriver.phone && (
-                          <a href={`tel:${o.assignedDriver.phone}`} className="text-[10px] text-indigo-600 dark:text-indigo-400">
-                            {o.assignedDriver.phone}
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action bouton */}
-                  {nextAction && (
-                    <button
-                      onClick={() => updateOrderStatus.mutate({ id: o.id, status: nextAction.status })}
-                      disabled={updateOrderStatus.isPending}
-                      className={`w-full py-2.5 rounded-xl text-sm font-bold transition-opacity ${nextAction.color} disabled:opacity-50`}
-                    >
-                      {nextAction.label}
-                    </button>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-
     </AppLayout>
   );
 }

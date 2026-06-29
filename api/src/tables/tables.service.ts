@@ -1,6 +1,6 @@
 import {
   Injectable, NotFoundException, ForbiddenException,
-  ConflictException, BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTableDto } from './dto/table.dto';
@@ -38,7 +38,7 @@ export class TablesService {
     });
     if (existing) throw new ConflictException(`La table n°${dto.number} existe déjà`);
     return this.prisma.restaurantTable.create({
-      data: { restaurantId: restaurant.id, number: dto.number, label: dto.label },
+      data: { restaurantId: restaurant.id, number: dto.number, label: dto.label, seats: dto.seats },
     });
   }
 
@@ -51,6 +51,16 @@ export class TablesService {
     if (table.restaurant.ownerId !== ownerId) throw new ForbiddenException();
     await this.prisma.restaurantTable.delete({ where: { id: tableId } });
     return { message: 'Table supprimée' };
+  }
+
+  // ── Public — liste des tables pour la commande depuis l'appli ─────────────
+
+  async findPublicByRestaurant(restaurantId: string) {
+    return this.prisma.restaurantTable.findMany({
+      where: { restaurantId, isActive: true },
+      select: { id: true, number: true, label: true, seats: true },
+      orderBy: { number: 'asc' },
+    });
   }
 
   // ── Public — landing page QR ──────────────────────────────────────────────

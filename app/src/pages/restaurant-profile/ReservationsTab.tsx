@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useMyTables } from "@/hooks/useTables";
 import { Reservation, STATUS } from "./shared";
 
 export function ReservationsTab({ restaurantId }: { restaurantId: string }) {
@@ -11,6 +12,7 @@ export function ReservationsTab({ restaurantId }: { restaurantId: string }) {
     queryKey: ["restaurant-reservations", restaurantId],
     queryFn:  () => api.get(`/reservations/restaurant/${restaurantId}`),
   });
+  const { data: tables } = useMyTables();
 
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [statusErr, setStatusErr] = useState<string>("");
@@ -23,6 +25,19 @@ export function ReservationsTab({ restaurantId }: { restaurantId: string }) {
       qc.invalidateQueries({ queryKey: ["restaurant-reservations"] });
     } catch (e: any) {
       setStatusErr(e.message ?? "Erreur lors de la mise à jour");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  async function assignTable(id: string, tableId: string) {
+    setLoadingId(id);
+    setStatusErr("");
+    try {
+      await api.patch(`/reservations/${id}/table`, { tableId: tableId || null });
+      qc.invalidateQueries({ queryKey: ["restaurant-reservations"] });
+    } catch (e: any) {
+      setStatusErr(e.message ?? "Erreur lors de l'assignation");
     } finally {
       setLoadingId(null);
     }
@@ -50,6 +65,25 @@ export function ReservationsTab({ restaurantId }: { restaurantId: string }) {
           <span>👥 {r.partySize} pers.</span>
         </div>
         {r.notes && <p className="text-xs text-text-2 italic bg-surface-2 px-3 py-2 rounded-lg">"{r.notes}"</p>}
+        {["PENDING", "CONFIRMED"].includes(r.status) && (tables?.length ?? 0) > 0 && (
+          <div>
+            <label className="text-[10px] font-bold text-text-3 uppercase tracking-wide block mb-1">Table assignée</label>
+            <select
+              value={r.table?.id ?? ""}
+              onChange={(e) => assignTable(r.id, e.target.value)}
+              disabled={loadingId === r.id}
+              className="w-full text-xs px-2.5 py-2 rounded-xl border border-border bg-surface text-text outline-none focus:border-accent/60"
+            >
+              <option value="">Aucune table assignée</option>
+              {tables?.map((t) => (
+                <option key={t.id} value={t.id} disabled={t.seats < r.partySize}>
+                  {t.label ?? `Table N°${t.number}`} · {t.seats} place{t.seats > 1 ? "s" : ""}
+                  {t.seats < r.partySize ? " (trop petite)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {r.status === "PENDING" && (
           <div className="flex gap-2">
             <button onClick={() => updateStatus(r.id, "CONFIRMED")}

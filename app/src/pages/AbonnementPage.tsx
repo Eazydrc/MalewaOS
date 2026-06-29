@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import {
   TIER_INFO,
+  TIER_PRICES_CENTS,
   usePaymentHistory,
-  useInitiatePayment,
   type PaymentTier,
 } from '@/hooks/usePayments';
 
@@ -69,24 +69,18 @@ function TierCard({ tierKey, isCurrent, isLoading }: TierCardProps) {
   const navigate = useNavigate();
   const info     = TIER_INFO[tierKey];
   const style    = TIER_STYLES[tierKey];
-  const initiate = useInitiatePayment();
 
-  const [error, setError] = useState('');
-
-  const handleChoose = async () => {
+  const handleChoose = () => {
     if (isCurrent) return;
-    setError('');
-    try {
-      const result = await initiate.mutateAsync(tierKey);
-      if (result?.paymentUrl) {
-        window.location.href = result.paymentUrl;
-      } else {
-        // Mode dev sans URL — rediriger vers dashboard
-        navigate('/dashboard');
-      }
-    } catch (err: any) {
-      setError(err?.message ?? 'Erreur lors de l\'initialisation du paiement');
-    }
+    navigate('/payment', {
+      state: {
+        amountCents: TIER_PRICES_CENTS[tierKey],
+        label: `Abonnement ${info.label}`,
+        kind: 'subscription',
+        tier: tierKey,
+        returnTo: '/dashboard',
+      },
+    });
   };
 
   return (
@@ -124,10 +118,6 @@ function TierCard({ tierKey, isCurrent, isLoading }: TierCardProps) {
         ))}
       </ul>
 
-      {/* Erreur */}
-      {error && (
-        <p className="text-xs text-red-500 font-medium">{error}</p>
-      )}
 
       {/* Bouton */}
       {isLoading ? (
@@ -140,7 +130,6 @@ function TierCard({ tierKey, isCurrent, isLoading }: TierCardProps) {
         <Button
           variant={tierKey === 'DOMINATION' ? 'accent' : 'secondary'}
           fullWidth
-          loading={initiate.isPending}
           onClick={handleChoose}
           className={
             tierKey === 'CROISSANCE'

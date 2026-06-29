@@ -10,6 +10,10 @@ describe('PaymentsService', () => {
     prisma = {
       restaurant: { findFirst: jest.fn(), update: jest.fn() },
       paymentTransaction: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+      orderPaymentTransaction: { create: jest.fn(), findUnique: jest.fn().mockResolvedValue(null), update: jest.fn(), updateMany: jest.fn() },
+      order: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+      user: { update: jest.fn() },
+      pointTransaction: { create: jest.fn() },
       $transaction: jest.fn((ops) => Promise.all(ops)),
     };
     config = { get: jest.fn() };

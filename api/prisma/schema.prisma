@@ -136,6 +136,7 @@ model User {
   staffProfile       StaffMember?
   pushSubscriptions  PushSubscription[]
   payments           PaymentTransaction[]
+  orderPayments      OrderPaymentTransaction[]
 
   @@index([email])
   @@index([googleId])
@@ -230,6 +231,7 @@ model Restaurant {
   tables       RestaurantTable[]
   staff        StaffMember[]
   payments     PaymentTransaction[]
+  orderPayments OrderPaymentTransaction[]
 
   @@index([ownerId])
   @@index([city])
@@ -313,6 +315,7 @@ model Reservation {
   id           String            @id @default(cuid())
   userId       String
   restaurantId String
+  tableId      String?
   date         DateTime
   partySize    Int
   notes        String?
@@ -320,11 +323,13 @@ model Reservation {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
-  user         User        @relation(fields: [userId], references: [id])
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id])
+  table        RestaurantTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([restaurantId])
+  @@index([tableId])
   @@index([date])
   @@index([status])
 }
@@ -356,11 +361,13 @@ model RestaurantTable {
   restaurantId String
   number       Int
   label        String?
+  seats        Int        @default(2)
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   orders       Order[]
+  reservations Reservation[]
 
   @@unique([restaurantId, number])
   @@index([restaurantId])
@@ -374,6 +381,8 @@ model Order {
   status       OrderStatus      @default(PENDING)
   totalCents   Int
   notes        String?
+  isPaid       Boolean          @default(false)
+  paidAt       DateTime?
 
   // Livraison
   deliveryAddress  String?   // adresse saisie par le client
@@ -491,6 +500,24 @@ model PaymentTransaction {
   transactionId String   @unique
   status        String   @default("PENDING") // PENDING | SUCCESS | FAILED
   cinetpayRef   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id])
+  user          User       @relation(fields: [userId], references: [id])
+
+  @@index([restaurantId])
+  @@index([userId])
+}
+
+model OrderPaymentTransaction {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  userId        String
+  orderIds      String[] // commandes couvertes par ce paiement
+  amountUsd     Int      // en cents
+  transactionId String   @unique
+  status        String   @default("PENDING") // PENDING | SUCCESS | FAILED
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

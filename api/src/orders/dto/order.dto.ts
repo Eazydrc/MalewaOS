@@ -1,6 +1,6 @@
 import {
   IsString, IsInt, IsEnum, IsOptional, IsArray,
-  ValidateNested, Min, MaxLength, IsNumber, IsLatitude, IsLongitude,
+  ValidateNested, Min, MaxLength, IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

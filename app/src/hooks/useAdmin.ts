@@ -112,6 +112,26 @@ export function useAdminRestaurants(params: {
   });
 }
 
+export function useAdminRestaurantMenu(restaurantId: string | null) {
+  return useQuery<{
+    id: string;
+    name: string;
+    menus: {
+      id: string;
+      isActive: boolean;
+      sections: {
+        id: string;
+        title: string;
+        items: { id: string; name: string; priceUsdCents: number; promoPrice?: number; isAvailable: boolean }[];
+      }[];
+    }[];
+  }>({
+    queryKey: ['admin', 'restaurant-menu', restaurantId],
+    queryFn: () => api.get(`/admin/restaurants/${restaurantId}/menu`),
+    enabled: !!restaurantId,
+  });
+}
+
 export function useAdminOrders(params: {
   search?: string;
   status?: OrderStatus;

@@ -76,6 +76,11 @@ export class AdminController {
     return this.adminService.getRestaurants(filters);
   }
 
+  @Get('restaurants/:id/menu')
+  getRestaurantMenu(@Param('id') id: string) {
+    return this.adminService.getRestaurantMenu(id);
+  }
+
   @Patch('restaurants/:id/status')
   toggleRestaurantStatus(@Param('id') id: string) {
     return this.adminService.toggleRestaurantStatus(id);

@@ -43,8 +43,9 @@ export class UploadController {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
 
     // Build absolute URL using request host
-    const proto  = req.headers['x-forwarded-proto'] ?? req.protocol ?? 'http';
-    const host   = req.headers['x-forwarded-host'] ?? req.get('host') ?? 'localhost:3001';
+    const firstHeader = (v: string | string[] | undefined) => Array.isArray(v) ? v[0] : v;
+    const proto  = firstHeader(req.headers['x-forwarded-proto']) ?? req.protocol ?? 'http';
+    const host   = firstHeader(req.headers['x-forwarded-host']) ?? req.get('host') ?? 'localhost:3001';
     const url    = `${proto}://${host}/uploads/${file.filename}`;
 
     return { url, filename: file.filename, size: file.size };

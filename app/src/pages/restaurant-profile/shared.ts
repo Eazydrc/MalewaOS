@@ -1,4 +1,5 @@
 import type { OpeningHours } from "@/hooks/useMenu";
+import { centsToCDF, formatCDF } from "@/lib/constants";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,12 +22,14 @@ export interface Restaurant {
 export interface Reservation {
   id: string; date: string; partySize: number; notes?: string; status: string;
   user: { firstName: string; lastName: string; email: string; phone?: string };
+  table?: { id: string; number: number; label?: string; seats: number } | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// priceUsdCents stocké en centimes USD — converti en Francs Congolais pour l'affichage
 export function fc(cents: number) {
-  return (cents / 100).toLocaleString("fr-CD", { maximumFractionDigits: 0 }) + " FC";
+  return formatCDF(centsToCDF(cents));
 }
 
 export const TIER_COLOR: Record<string, string> = {

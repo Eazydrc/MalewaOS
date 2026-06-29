@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OrdersGateway } from './orders.gateway';
 import { CreateOrderDto, UpdateOrderStatusDto, AssignDriverDto, UpdateDriverLocationDto } from './dto/order.dto';
 
 // Abonnements autorisant la commande en ligne (ESSENTIEL+ pour tous les types de restaurant)
@@ -19,6 +20,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
+    private gateway: OrdersGateway,
   ) {}
 
   // ── Créer une commande ────────────────────────────────────────────────────
@@ -122,6 +124,8 @@ export class OrdersService {
       body: `Commande de ${order.user.firstName} — ${orderType}`,
       url: '/dashboard',
     }).catch((err) => this.logger.warn(`Notification nouvelle commande échouée (${order.id}): ${err.message}`));
+
+    this.gateway.emitNewOrder(dto.restaurantId, order);
 
     return order;
   }
@@ -238,6 +242,8 @@ export class OrdersService {
       url: `/track/${orderId}`,
     }).catch((err) => this.logger.warn(`Notification "en route" échouée (${orderId}): ${err.message}`));
 
+    this.gateway.emitOrderStatus(updated.restaurant.id, updated.user.id, updated);
+
     return updated;
   }
 
@@ -252,7 +258,7 @@ export class OrdersService {
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data:  { status: 'DELIVERED', driverLat: null, driverLng: null },
-      include: { user: { select: { id: true } } },
+      include: { user: { select: { id: true } }, restaurant: { select: { id: true } } },
     });
 
     this.notifications.sendToUser(updated.user.id, {
@@ -260,6 +266,8 @@ export class OrdersService {
       body: 'Votre commande a bien été livrée. Bon appétit !',
       url: '/commander',
     }).catch((err) => this.logger.warn(`Notification "livrée" échouée (${orderId}): ${err.message}`));
+
+    this.gateway.emitOrderStatus(updated.restaurant.id, updated.user.id, updated);
 
     return updated;
   }
@@ -325,26 +333,30 @@ export class OrdersService {
   async updateStatus(id: string, dto: UpdateOrderStatusDto, userId: string, role: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { restaurant: { select: { ownerId: true } } },
+      include: { restaurant: { select: { id: true, ownerId: true } } },
     });
     if (!order) throw new NotFoundException('Commande introuvable');
 
     // Le client peut annuler sa propre commande si elle est PENDING
     if (order.userId === userId && dto.status === 'CANCELLED' && order.status === 'PENDING') {
-      return this.prisma.order.update({
+      const cancelled = await this.prisma.order.update({
         where: { id },
         data:  { status: 'CANCELLED' },
         include: { items: true },
       });
+      this.gateway.emitOrderStatus(order.restaurant.id, order.userId, cancelled);
+      return cancelled;
     }
 
     const isOwner = order.restaurant.ownerId === userId;
     if (!isOwner && role !== 'ADMIN') throw new ForbiddenException();
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id },
       data:  { status: dto.status },
       include: { items: true },
     });
+    this.gateway.emitOrderStatus(order.restaurant.id, order.userId, updated);
+    return updated;
   }
 }

@@ -3,7 +3,7 @@ import {
   Param, Body, UseGuards,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
-import { CreateReservationDto, UpdateReservationDto, UpdateStatusDto } from './dto/reservation.dto';
+import { CreateReservationDto, UpdateReservationDto, UpdateStatusDto, AssignTableDto } from './dto/reservation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator';
 
@@ -45,5 +45,10 @@ export class ReservationsController {
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto, @CurrentUser() user: JwtUser) {
     return this.reservations.updateStatus(id, dto, user.id, user.role);
+  }
+
+  @Patch(':id/table')
+  assignTable(@Param('id') id: string, @Body() dto: AssignTableDto, @CurrentUser() user: JwtUser) {
+    return this.reservations.assignTable(id, dto.tableId ?? null, user.id, user.role);
   }
 }

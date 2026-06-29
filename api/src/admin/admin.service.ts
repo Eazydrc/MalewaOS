@@ -367,6 +367,26 @@ export class AdminService {
     };
   }
 
+  async getRestaurantMenu(id: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        menus: {
+          include: {
+            sections: {
+              orderBy: { order: 'asc' },
+              include: { items: { orderBy: { order: 'asc' } } },
+            },
+          },
+        },
+      },
+    });
+    if (!restaurant) throw new NotFoundException('Restaurant introuvable');
+    return restaurant;
+  }
+
   async toggleRestaurantStatus(id: string) {
     const restaurant = await this.prisma.restaurant.findUnique({ where: { id } });
     if (!restaurant) throw new NotFoundException('Restaurant introuvable');

@@ -6,4 +6,7 @@ export class CreateTableDto {
 
   @IsOptional() @IsString() @MaxLength(50)
   label?: string;
+
+  @IsInt() @Min(1) @Max(50)
+  seats: number;
 }

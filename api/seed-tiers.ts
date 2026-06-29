@@ -247,7 +247,7 @@ async function main() {
   // Compte client de test, utilisé pour les réservations d'exemple
   const clientUser = await prisma.user.upsert({
     where: { id: 'test-user-client-001' },
-    update: { email: 'client@test.cd', password: hash, isActive: true },
+    update: { email: 'client@test.cd', password: hash, isActive: true, emailVerified: true },
     create: {
       id:        'test-user-client-001',
       email:     'client@test.cd',
@@ -256,6 +256,7 @@ async function main() {
       lastName:  'Nzuzi',
       role:      'CLIENT',
       isActive:  true,
+      emailVerified: true,
     },
   });
   console.log(`▶ Compte client de test : ${clientUser.email}`);
@@ -266,7 +267,7 @@ async function main() {
     // 1. Utilisateur
     const user = await prisma.user.upsert({
       where: { id: tier.userId },
-      update: { email: tier.email, password: hash, isActive: true },
+      update: { email: tier.email, password: hash, isActive: true, emailVerified: true },
       create: {
         id:        tier.userId,
         email:     tier.email,
@@ -275,6 +276,7 @@ async function main() {
         lastName:  tier.lastName,
         role:      'RESTAURANT',
         isActive:  true,
+        emailVerified: true,
       },
     });
     console.log(`  ✓ User: ${user.email}`);

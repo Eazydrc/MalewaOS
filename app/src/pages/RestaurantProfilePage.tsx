@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, type ComponentType } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
 import { api } from "@/lib/api";
@@ -18,11 +18,41 @@ import { TablesTab } from "./restaurant-profile/TablesTab";
 import { AnalyticsTab } from "./restaurant-profile/AnalyticsTab";
 import { PersonnelTab } from "./restaurant-profile/PersonnelTab";
 import { DesignTab } from "./restaurant-profile/DesignTab";
+import { ChefHatIcon, TagIcon, TableIcon, CalendarIcon, StarFilledIcon, BarChartIcon, UsersIcon, PaletteIcon, ClockIcon, StoreIcon } from "@/components/ui/Icon";
+
+// Groupes thématiques — pour un menu d'accès plus doux et plus lisible
+// qu'une longue barre d'onglets défilante
+const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: ComponentType<{ size?: number; className?: string }> }[] }[] = [
+  { label: "Vente", tabs: [
+    { id: "menu",      label: "Menu",    icon: ChefHatIcon },
+    { id: "offres",    label: "Offres",  icon: TagIcon },
+    { id: "tables",    label: "Tables",  icon: TableIcon },
+  ]},
+  { label: "Clients", tabs: [
+    { id: "reservations", label: "Réservations", icon: CalendarIcon },
+    { id: "avis",         label: "Avis",         icon: StarFilledIcon },
+  ]},
+  { label: "Gestion", tabs: [
+    { id: "analytics", label: "Analytics",  icon: BarChartIcon },
+    { id: "personnel", label: "Personnel",  icon: UsersIcon },
+    { id: "design",    label: "Design",     icon: PaletteIcon },
+    { id: "horaires",  label: "Horaires",   icon: ClockIcon },
+    { id: "infos",     label: "Infos",      icon: StoreIcon },
+  ]},
+];
+
+const ALL_TABS = TAB_GROUPS.flatMap(g => g.tabs);
 
 export default function RestaurantProfilePage() {
   const navigate = useNavigate();
   const { user }  = useAuthStore();
-  const [tab, setTab] = useState<Tab>("menu");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const [tab, setTab] = useState<Tab | null>(tabParam);
+
+  useEffect(() => {
+    if (tabParam) setTab(tabParam);
+  }, [tabParam]);
   const isDesktop = useIsDesktop();
 
   const { data: restaurant, isLoading } = useQuery<Restaurant>({
@@ -31,20 +61,7 @@ export default function RestaurantProfilePage() {
     enabled:  !!user,
   });
 
-  const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: "menu",         label: "Menu",        icon: "🍽️" },
-    { id: "reservations", label: "Réservations", icon: "📅" },
-    { id: "offres",       label: "Offres",       icon: "🎟️" },
-    { id: "avis",         label: "Avis",         icon: "⭐" },
-    { id: "tables",       label: "Tables",       icon: "🪑" },
-    { id: "analytics",    label: "Analytics",    icon: "📊" },
-    { id: "personnel",    label: "Personnel",    icon: "👥" },
-    { id: "design",       label: "Design",       icon: "🎨" },
-    { id: "horaires",     label: "Horaires",     icon: "🕐" },
-    { id: "infos",        label: "Infos",        icon: "🏪" },
-  ];
-
-  const activeTab = TABS.find(t => t.id === tab);
+  const activeTab = ALL_TABS.find(t => t.id === tab);
 
   const tabContent = (
     <>
@@ -68,32 +85,47 @@ export default function RestaurantProfilePage() {
     </>
   );
 
+  // Grille d'accès — tuiles douces groupées par thème, plutôt qu'une
+  // longue barre d'onglets à faire défiler latéralement
+  const launcherGrid = (
+    <div className="space-y-6">
+      {TAB_GROUPS.map(group => (
+        <div key={group.label} className="space-y-2.5">
+          <p className="text-xs font-bold text-text-3 uppercase tracking-wider px-1">{group.label}</p>
+          <div className="grid grid-cols-3 gap-2.5">
+            {group.tabs.map(t => {
+              const TabIcon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className="card flex flex-col items-center gap-2 py-5 rounded-2xl border border-border bg-surface hover:bg-surface-2 active:scale-[0.97] transition-all no-tap"
+                >
+                  <TabIcon size={22} className="text-accent" />
+                  <span className="text-xs font-bold text-text-2">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   // ── Layout Desktop ──────────────────────────────────────────────────────────
   if (isDesktop) {
     return (
       <AppLayout
-        title={restaurant?.name ?? "Mon Restaurant"}
+        title={tab ? `${restaurant?.name ?? "Mon Restaurant"} — ${activeTab?.label}` : (restaurant?.name ?? "Mon Restaurant")}
         showBack
-        noPadding
+        headerRight={tab ? (
+          <button onClick={() => setTab(null)} className="text-xs font-bold text-accent hover:underline">
+            ← Tous les réglages
+          </button>
+        ) : undefined}
       >
-        {/* Barre onglets desktop */}
-        <div className="border-b border-border bg-surface/95 sticky top-14 z-20">
-          <div className="flex px-6 overflow-x-auto gap-1" style={{ scrollbarWidth: "none" } as any}>
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                  tab === t.id ? "border-accent text-accent" : "border-transparent text-text-3 hover:text-text"
-                }`}>
-                <span>{t.icon}</span>
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Contenu */}
         <div className="px-6 py-6 max-w-5xl">
-          {tabContent}
+          {tab === null ? launcherGrid : tabContent}
         </div>
       </AppLayout>
     );
@@ -105,7 +137,7 @@ export default function RestaurantProfilePage() {
       {/* Header */}
       <header className="bg-surface border-b border-border sticky top-0 z-40">
         <div className="px-4 h-14 flex items-center gap-3">
-          <button onClick={() => navigate("/dashboard")}
+          <button onClick={() => (tab ? setTab(null) : navigate("/dashboard"))}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-text-3 hover:text-text hover:bg-surface-2 transition-all shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
@@ -113,30 +145,15 @@ export default function RestaurantProfilePage() {
             <h1 className="text-base font-black text-text tracking-tight">Mon Restaurant</h1>
             {activeTab && (
               <p className="text-[10px] text-text-3 font-medium -mt-0.5">
-                {activeTab.icon} {activeTab.label}
+                {activeTab.label}
               </p>
             )}
           </div>
         </div>
-        {/* Pills nav — scrollable, style mobile natif */}
-        <div className="flex gap-2 px-3 pb-3 overflow-x-auto"
-          style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none" } as any}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap shrink-0 transition-all no-tap active:scale-95 ${
-                tab === t.id
-                  ? "bg-accent text-white shadow-btn"
-                  : "bg-surface-2 text-text-3 border border-border"
-              }`}>
-              <span className="text-[13px]">{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
-        </div>
       </header>
 
       <main className="px-4 py-5 pb-32">
-        {tabContent}
+        {tab === null ? launcherGrid : tabContent}
       </main>
 
       <BottomNav />

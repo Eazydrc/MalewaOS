@@ -1,10 +1,26 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useRestaurantPublic } from '@/hooks/useRestaurantPublic';
 import { useAuthStore } from '@/store/auth.store';
+import { useOrdersSocket } from '@/hooks/useOrdersSocket';
+import { usePublicTables } from '@/hooks/useTables';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { OrderStepper, type OrderStatus } from '@/components/orders/OrderStepper';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/constants';
+
+interface MyOrder {
+  id: string;
+  status: OrderStatus;
+  createdAt: string;
+  totalCents: number;
+  isPaid: boolean;
+  deliveryAddress?: string | null;
+  items: { id: string; name: string; quantity: number }[];
+  restaurant: { id: string; name: string; imageUrl?: string };
+}
 
 // ── Types panier ──────────────────────────────────────────────────────────────
 
@@ -20,7 +36,7 @@ const ORDER_TIERS = ['ESSENTIEL', 'CROISSANCE', 'DOMINATION'];
 
 // ── Types locaux ──────────────────────────────────────────────────────────────
 
-type Tab = 'menu' | 'offres' | 'avis';
+type Tab = 'menu' | 'offres' | 'avis' | 'commandes';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -172,6 +188,7 @@ export default function RestaurantPublicPage() {
   const [activeTab, setActiveTab]   = useState<Tab>('menu');
   const [showModal, setShowModal]         = useState(false);
   const [showCart, setShowCart]           = useState(false);
+  const [openMyOrderId, setOpenMyOrderId] = useState<string | null>(null);
   const [cart, setCart]                   = useState<Map<string, CartItem>>(new Map());
   const [orderNotes, setOrderNotes]       = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -182,8 +199,39 @@ export default function RestaurantPublicPage() {
   const [orderError, setOrderError]       = useState('');
   const [locating, setLocating]           = useState(false);
   const { user } = useAuthStore();
+  const isDesktop = useIsDesktop();
 
   const canOrder = ORDER_TIERS.includes(restaurant?.subscription ?? '');
+
+  const { data: allMyOrders = [] } = useQuery<MyOrder[]>({
+    queryKey: ['my-orders'],
+    queryFn: () => api.get('/orders/mine'),
+    enabled: !!user,
+    staleTime: 15 * 1000,
+  });
+  const myOrdersHere = allMyOrders.filter(o => o.restaurant.id === id);
+  const openMyOrder = myOrdersHere.find(o => o.id === openMyOrderId) ?? null;
+
+  const qc = useQueryClient();
+  useOrdersSocket({
+    enabled: !!user,
+    invalidateKeys: [['my-orders'], ['orders-due', id]],
+    playBeep: false,
+  });
+
+  const payForOrder = (order: MyOrder) => {
+    if (!id) return;
+    navigate('/payment', {
+      state: {
+        amountCents: order.totalCents,
+        label: `Commande chez ${restaurant?.name ?? 'le restaurant'}`,
+        kind: 'order',
+        restaurantId: id,
+        orderId: order.id,
+        returnTo: `/restaurant/${id}`,
+      },
+    });
+  };
 
   const cartItems  = useMemo(() => Array.from(cart.values()), [cart]);
   const cartCount  = useMemo(() => cartItems.reduce((s, i) => s + i.quantity, 0), [cartItems]);
@@ -213,7 +261,23 @@ export default function RestaurantPublicPage() {
     });
   }, []);
 
-  const isDelivery = restaurant?.restaurantType === 'LIVRAISON' || restaurant?.restaurantType === 'LES_DEUX';
+  const canDeliver = restaurant?.restaurantType === 'LIVRAISON' || restaurant?.restaurantType === 'LES_DEUX';
+  const canDineIn  = restaurant?.restaurantType === 'SUR_PLACE' || restaurant?.restaurantType === 'LES_DEUX';
+
+  const { data: publicTables = [] } = usePublicTables(id);
+  const [serviceType, setServiceType] = useState<'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'>('TAKEAWAY');
+  const [tableNumberInput, setTableNumberInput] = useState('');
+  const matchedTable = publicTables.find(t => String(t.number) === tableNumberInput.trim());
+  const selectedTableId = matchedTable?.id ?? '';
+  const isDelivery = serviceType === 'DELIVERY';
+
+  // Choisir un service par défaut cohérent avec le type de restaurant
+  useEffect(() => {
+    if (!restaurant) return;
+    if (restaurant.restaurantType === 'LIVRAISON') setServiceType('DELIVERY');
+    else if (canDineIn && publicTables.length > 0) setServiceType('DINE_IN');
+    else setServiceType('TAKEAWAY');
+  }, [restaurant?.restaurantType, canDineIn, publicTables.length]);
 
   const geolocateMe = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -233,8 +297,12 @@ export default function RestaurantPublicPage() {
   const submitOrder = useCallback(async () => {
     if (!user) { navigate('/login'); return; }
     if (cartItems.length === 0) return;
-    if (isDelivery && !deliveryAddress.trim()) {
+    if (serviceType === 'DELIVERY' && !deliveryAddress.trim()) {
       setOrderError('Veuillez saisir votre adresse de livraison');
+      return;
+    }
+    if (serviceType === 'DINE_IN' && !selectedTableId) {
+      setOrderError('Veuillez renseigner le numéro de votre table');
       return;
     }
     setOrdering(true); setOrderError('');
@@ -243,15 +311,16 @@ export default function RestaurantPublicPage() {
         restaurantId: id,
         items: cartItems.map(i => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
         notes: orderNotes || undefined,
-        deliveryAddress: isDelivery ? deliveryAddress.trim() : undefined,
-        deliveryLat:     isDelivery ? deliveryLat : undefined,
-        deliveryLng:     isDelivery ? deliveryLng : undefined,
+        tableId:         serviceType === 'DINE_IN'   ? selectedTableId : undefined,
+        deliveryAddress: serviceType === 'DELIVERY'  ? deliveryAddress.trim() : undefined,
+        deliveryLat:     serviceType === 'DELIVERY'  ? deliveryLat : undefined,
+        deliveryLng:     serviceType === 'DELIVERY'  ? deliveryLng : undefined,
       });
       setOrderSuccess(true);
       setCart(new Map());
       setOrderNotes('');
       // Naviguer vers le tracking après un court délai
-      if (isDelivery && order?.id) {
+      if (serviceType === 'DELIVERY' && order?.id) {
         setTimeout(() => navigate(`/track/${order.id}`), 1500);
       }
     } catch (e: any) {
@@ -259,7 +328,7 @@ export default function RestaurantPublicPage() {
     } finally {
       setOrdering(false);
     }
-  }, [user, cartItems, id, orderNotes, navigate, isDelivery, deliveryAddress, deliveryLat, deliveryLng]);
+  }, [user, cartItems, id, orderNotes, navigate, serviceType, selectedTableId, deliveryAddress, deliveryLat, deliveryLng]);
 
   if (isLoading) {
     return (
@@ -441,6 +510,7 @@ export default function RestaurantPublicPage() {
               { id: 'menu',  label: 'Menu' },
               { id: 'offres', label: 'Offres' },
               { id: 'avis',  label: 'Avis' },
+              ...(user ? [{ id: 'commandes', label: `Mes commandes${myOrdersHere.length ? ` (${myOrdersHere.length})` : ''}` }] : []),
             ] as { id: Tab; label: string }[]).map(t => (
               <button
                 key={t.id}
@@ -613,11 +683,67 @@ export default function RestaurantPublicPage() {
             </div>
           )}
 
+          {/* ── TAB COMMANDES (client) ── */}
+          {activeTab === 'commandes' && (
+            <div className="space-y-3 pb-20">
+              {myOrdersHere.length === 0 ? (
+                <div className="card p-8 text-center">
+                  <p className="text-xl mb-1">🛍️</p>
+                  <p className="text-xs text-text-3">Aucune commande dans ce restaurant</p>
+                </div>
+              ) : (
+                myOrdersHere.map(order => {
+                  const isTerminal = ['DELIVERED', 'CANCELLED'].includes(order.status);
+                  const canPay = !order.isPaid && order.status !== 'CANCELLED';
+                  return (
+                    <div key={order.id} className="card p-4 space-y-2">
+                      <button
+                        onClick={() => setOpenMyOrderId(order.id)}
+                        className="w-full space-y-1.5 text-left"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs text-text-3">
+                            {new Date(order.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-text-2">{formatPrice(order.totalCents).cdf}</span>
+                            {order.isPaid ? (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">✓ Payée</span>
+                            ) : (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400">Non payée</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-text-2">
+                          {order.items.length} article{order.items.length > 1 ? 's' : ''}
+                        </p>
+                        <p className={`text-[11px] font-semibold ${isTerminal ? (order.status === 'CANCELLED' ? 'text-red-500' : 'text-green-600 dark:text-green-400') : 'text-accent'}`}>
+                          {order.status === 'CANCELLED' ? '✕ Annulée' : order.status === 'DELIVERED' ? '✓ Terminée' : 'En cours — voir le détail'}
+                        </p>
+                      </button>
+                      {canPay && (
+                        <button
+                          onClick={() => payForOrder(order)}
+                          className="w-full py-2 rounded-xl bg-accent text-white text-xs font-bold"
+                        >
+                          💳 Payer cette commande
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
         </div>
       </AppLayout>
 
       {/* ── Sticky bar actions ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-gradient-to-t from-bg via-bg/95 to-transparent pointer-events-none">
+      {/* Décalée au-dessus du BottomNav mobile (z-50) pour ne jamais le chevaucher */}
+      <div
+        className={`fixed left-0 right-0 z-40 p-3 bg-gradient-to-t from-bg via-bg/95 to-transparent pointer-events-none ${isDesktop ? 'bottom-0' : 'bottom-[72px]'}`}
+      >
         <div className="pointer-events-auto w-full max-w-md mx-auto flex gap-2">
 
           {/* Réserver — masqué si livraison pure */}
@@ -704,7 +830,68 @@ export default function RestaurantPublicPage() {
                     </div>
                   ))}
 
-                  {/* Adresse de livraison (si restaurant LIVRAISON ou LES_DEUX) */}
+                  {/* Type de service — sur place / à emporter / livraison */}
+                  {(canDineIn || canDeliver) && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-text-2">Comment souhaitez-vous commander ?</label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {canDineIn && (
+                          <button
+                            type="button"
+                            onClick={() => setServiceType('DINE_IN')}
+                            className={`py-2 rounded-xl text-[11px] font-bold transition-all ${serviceType === 'DINE_IN' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
+                          >
+                            🍽️ Sur place
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setServiceType('TAKEAWAY')}
+                          className={`py-2 rounded-xl text-[11px] font-bold transition-all ${serviceType === 'TAKEAWAY' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
+                        >
+                          🛍️ À emporter
+                        </button>
+                        {canDeliver && (
+                          <button
+                            type="button"
+                            onClick={() => setServiceType('DELIVERY')}
+                            className={`py-2 rounded-xl text-[11px] font-bold transition-all ${serviceType === 'DELIVERY' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
+                          >
+                            🛵 Livraison
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Choix de la table (si sur place) — astuce : scanner le QR de la table évite cette étape */}
+                  {serviceType === 'DINE_IN' && (
+                    <div className="space-y-2 rounded-xl bg-accent/5 border border-accent/20 p-3">
+                      <label className="text-xs font-semibold text-text flex items-center gap-1">🍽️ N° de votre table *</label>
+                      {publicTables.length === 0 ? (
+                        <p className="text-[11px] text-text-3">Aucune table configurée — un membre du personnel vous installera.</p>
+                      ) : (
+                        <>
+                          <input
+                            type="number"
+                            min="1"
+                            value={tableNumberInput}
+                            onChange={e => setTableNumberInput(e.target.value)}
+                            placeholder="Ex : 4"
+                            className="input-base w-full px-3 py-2 text-sm"
+                          />
+                          {tableNumberInput && !matchedTable && (
+                            <p className="text-[11px] text-red-500">Aucune table portant ce numéro</p>
+                          )}
+                          <p className="text-[10px] text-text-3">
+                            💡 Le plus simple reste de scanner le QR code affiché sur votre table — la commande s'y rattache automatiquement.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Adresse de livraison (si livraison choisie) */}
                   {isDelivery && (
                     <div className="space-y-2 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-3">
                       <label className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
@@ -779,6 +966,59 @@ export default function RestaurantPublicPage() {
       {/* ── Modal réservation ── */}
       {showModal && id && (
         <ReservationModal restaurantId={id} onClose={() => setShowModal(false)} />
+      )}
+
+      {/* ── Modal détail commande ── */}
+      {openMyOrder && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpenMyOrderId(null)} />
+          <div className="relative w-full md:max-w-md bg-bg rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5">
+              <div>
+                <p className="text-base font-bold text-text">Détail de la commande</p>
+                <p className="text-xs text-text-3 mt-0.5">
+                  {new Date(openMyOrder.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                </p>
+              </div>
+              <button onClick={() => setOpenMyOrderId(null)} className="text-text-3 hover:text-text p-1">✕</button>
+            </div>
+            <div className="px-5 pb-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-black text-text">{formatPrice(openMyOrder.totalCents).cdf}</span>
+                {openMyOrder.isPaid ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">✓ Payée</span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400">Non payée</span>
+                )}
+              </div>
+              <div className="space-y-1.5 border-t border-border pt-3">
+                {openMyOrder.items.map(item => (
+                  <div key={item.id} className="text-sm text-text-2">× {item.quantity} {item.name}</div>
+                ))}
+              </div>
+              {['DELIVERED', 'CANCELLED'].includes(openMyOrder.status) ? (
+                <p className={`text-sm font-semibold border-t border-border pt-4 ${openMyOrder.status === 'CANCELLED' ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                  {openMyOrder.status === 'CANCELLED' ? '✕ Commande annulée' : '✓ Commande terminée'}
+                </p>
+              ) : (
+                <div className="border-t border-border pt-4">
+                  <OrderStepper
+                    status={openMyOrder.status}
+                    fulfillment={openMyOrder.deliveryAddress ? 'DELIVERY' : 'TAKEAWAY'}
+                  />
+                </div>
+              )}
+              {!openMyOrder.isPaid && openMyOrder.status !== 'CANCELLED' && (
+                <button
+                  onClick={() => payForOrder(openMyOrder)}
+                  className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold"
+                >
+                  💳 Payer cette commande
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

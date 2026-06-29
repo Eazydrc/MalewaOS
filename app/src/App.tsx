@@ -23,6 +23,7 @@ import CommanderPage        from "@/pages/CommanderPage";
 // Restaurant
 import RestaurantDashboardPage  from "@/pages/RestaurantDashboardPage";
 import RestaurantProfilePage    from "@/pages/RestaurantProfilePage";
+import OrdersConsolePage        from "@/pages/OrdersConsolePage";
 
 // Public
 import PublicMenuPage       from "@/pages/PublicMenuPage";
@@ -43,6 +44,7 @@ import RegisterDriverPage   from "@/pages/RegisterDriverPage";
 // Abonnement
 import { SubscriptionPage } from "@/pages/SubscriptionPage";
 import AbonnementPage       from "@/pages/AbonnementPage";
+import PaymentPage          from "@/pages/PaymentPage";
 import PaiementRetourPage   from "@/pages/PaiementRetourPage";
 
 // Dev
@@ -81,6 +83,7 @@ export default function App() {
       <Route path="/wallet"          element={<AuthGuard><WalletPage /></AuthGuard>} />
       <Route path="/profile"         element={<AuthGuard><ProfilePage /></AuthGuard>} />
       <Route path="/dashboard"       element={<AuthGuard><RestaurantDashboardPage /></AuthGuard>} />
+      <Route path="/commandes"       element={<AuthGuard><OrdersConsolePage /></AuthGuard>} />
       <Route path="/mon-restaurant"  element={<AuthGuard><RestaurantProfilePage /></AuthGuard>} />
       <Route path="/admin"           element={<AuthGuard><AdminDashboardPage /></AuthGuard>} />
       <Route path="/staff"           element={<AuthGuard><StaffDashboardPage /></AuthGuard>} />
@@ -88,6 +91,7 @@ export default function App() {
       <Route path="/track/:orderId"  element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
       <Route path="/abonnement"      element={<AuthGuard><SubscriptionPage /></AuthGuard>} />
       <Route path="/abonnement/cinetpay" element={<AuthGuard><AbonnementPage /></AuthGuard>} />
+      <Route path="/payment"             element={<AuthGuard><PaymentPage /></AuthGuard>} />
       <Route path="/paiement/retour"     element={<PaiementRetourPage />} />
 
       {/* Dev */}

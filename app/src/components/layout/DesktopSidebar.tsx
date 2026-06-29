@@ -20,16 +20,16 @@ const CLIENT_NAV = [
 ];
 
 const RESTAURANT_NAV = [
-  { to: '/dashboard',       label: 'Dashboard',      icon: LayoutDashboard },
-  { to: '/mon-restaurant',  label: 'Mon restaurant', icon: UtensilsCrossed },
-  { to: '/mon-restaurant',  label: 'Commandes',      icon: ShoppingBag,  hash: 'orders' },
-  { to: '/mon-restaurant',  label: 'Réservations',   icon: Calendar,     hash: 'reservations' },
-  { to: '/mon-restaurant',  label: 'Menu',           icon: ChefHat,      hash: 'menu' },
-  { to: '/mon-restaurant',  label: 'Analytics',      icon: BarChart2,    hash: 'analytics' },
-  { to: '/mon-restaurant',  label: 'Personnel',      icon: Users,        hash: 'staff' },
-  { to: '/mon-restaurant',  label: 'Horaires',       icon: Clock,        hash: 'horaires' },
-  { to: '/abonnement',      label: 'Abonnement',     icon: Star },
-  { to: '/profile',         label: 'Mon compte',     icon: User },
+  { to: '/dashboard',                       label: 'Dashboard',      icon: LayoutDashboard },
+  { to: '/mon-restaurant',                  label: 'Mon restaurant', icon: UtensilsCrossed },
+  { to: '/commandes',                       label: 'Commandes',      icon: ShoppingBag },
+  { to: '/mon-restaurant?tab=reservations', label: 'Réservations',   icon: Calendar },
+  { to: '/mon-restaurant?tab=menu',         label: 'Menu',           icon: ChefHat },
+  { to: '/mon-restaurant?tab=analytics',    label: 'Analytics',      icon: BarChart2 },
+  { to: '/mon-restaurant?tab=personnel',    label: 'Personnel',      icon: Users },
+  { to: '/mon-restaurant?tab=horaires',     label: 'Horaires',       icon: Clock },
+  { to: '/abonnement',                      label: 'Abonnement',     icon: Star },
+  { to: '/profile',                         label: 'Mon compte',     icon: User },
 ];
 
 const DRIVER_NAV = [
@@ -46,21 +46,20 @@ interface NavItem {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  hash?: string;
 }
 
 function NavLink({ item }: { item: NavItem }) {
-  const { pathname, hash } = useLocation();
+  const { pathname, search } = useLocation();
   const Icon = item.icon;
-  const itemPath = item.hash ? `${item.to}#${item.hash}` : item.to;
+  const [itemPath, itemQuery] = item.to.split('?');
 
-  const active = item.hash
-    ? pathname === item.to && hash === `#${item.hash}`
-    : pathname === item.to || (item.to === '/home' && pathname === '/');
+  const active = itemQuery
+    ? pathname === itemPath && search === `?${itemQuery}`
+    : pathname === itemPath || (itemPath === '/home' && pathname === '/');
 
   return (
     <Link
-      to={itemPath}
+      to={item.to}
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
         active

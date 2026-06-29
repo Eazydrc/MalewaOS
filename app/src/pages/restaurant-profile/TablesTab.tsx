@@ -10,6 +10,7 @@ export function TablesTab({ subscription, restaurantId }: { subscription: string
   const deleteTable = useDeleteTable();
   const [number, setNumber] = useState("");
   const [label,  setLabel]  = useState("");
+  const [seats,  setSeats]  = useState("4");
   const [showForm, setShowForm] = useState(false);
   const [formErr, setFormErr]  = useState("");
 
@@ -30,10 +31,12 @@ export function TablesTab({ subscription, restaurantId }: { subscription: string
     e.preventDefault();
     setFormErr("");
     const num = parseInt(number);
+    const seatsNum = parseInt(seats);
     if (!num || num < 1) { setFormErr("Numéro invalide"); return; }
+    if (!seatsNum || seatsNum < 1) { setFormErr("Nombre de places invalide"); return; }
     try {
-      await createTable.mutateAsync({ number: num, label: label.trim() || undefined });
-      setNumber(""); setLabel(""); setShowForm(false);
+      await createTable.mutateAsync({ number: num, label: label.trim() || undefined, seats: seatsNum });
+      setNumber(""); setLabel(""); setSeats("4"); setShowForm(false);
     } catch (e: any) { setFormErr(e.message ?? "Erreur"); }
   }
 
@@ -64,11 +67,17 @@ export function TablesTab({ subscription, restaurantId }: { subscription: string
       {showForm && (
         <form onSubmit={submit} className="card p-4 space-y-3">
           <p className="text-sm font-bold text-text">Nouvelle table</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-[11px] font-bold text-text-3 block mb-1">N° de table *</label>
               <input type="number" min="1" max="999" value={number} onChange={e => setNumber(e.target.value)} required
                 placeholder="1"
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-surface text-sm text-text outline-none focus:border-accent/60" />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-text-3 block mb-1">Places *</label>
+              <input type="number" min="1" max="50" value={seats} onChange={e => setSeats(e.target.value)} required
+                placeholder="4"
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-surface text-sm text-text outline-none focus:border-accent/60" />
             </div>
             <div>
@@ -99,6 +108,7 @@ export function TablesTab({ subscription, restaurantId }: { subscription: string
                 <div>
                   <p className="font-black text-text text-sm">Table {t.label ?? `N°${t.number}`}</p>
                   {t.label && <p className="text-[11px] text-text-3">N°{t.number}</p>}
+                  <p className="text-[11px] text-text-3 mt-0.5">🪑 {t.seats} place{t.seats > 1 ? "s" : ""}</p>
                 </div>
                 <button onClick={() => deleteTable.mutate(t.id)}
                   className="p-1.5 rounded-lg text-text-3 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0">🗑️</button>

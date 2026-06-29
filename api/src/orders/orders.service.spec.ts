@@ -8,6 +8,7 @@ import {
 describe('OrdersService', () => {
   let prisma: any;
   let notifications: any;
+  let gateway: any;
   let service: OrdersService;
 
   beforeEach(() => {
@@ -21,7 +22,11 @@ describe('OrdersService', () => {
       sendToRestaurantOwner: jest.fn().mockResolvedValue(undefined),
       sendToUser: jest.fn().mockResolvedValue(undefined),
     };
-    service = new OrdersService(prisma, notifications);
+    gateway = {
+      emitNewOrder: jest.fn(),
+      emitOrderStatus: jest.fn(),
+    };
+    service = new OrdersService(prisma, notifications, gateway);
   });
 
   describe('create', () => {

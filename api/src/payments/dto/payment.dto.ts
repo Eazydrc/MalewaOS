@@ -20,6 +20,15 @@ export const TIER_PRICES: Record<SubscriptionTier, number> = {
 };
 
 // ─────────────────────────────────────────────
+// Méthode de paiement choisie par le client
+// ─────────────────────────────────────────────
+
+export enum PaymentMethod {
+  CARD         = 'CARD',
+  MOBILE_MONEY = 'MOBILE_MONEY',
+}
+
+// ─────────────────────────────────────────────
 // DTO pour initier un paiement
 // ─────────────────────────────────────────────
 
@@ -27,8 +36,35 @@ export class InitiatePaymentDto {
   @IsEnum(SubscriptionTier)
   tier: SubscriptionTier;
 
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  method?: PaymentMethod;
+
+  @IsOptional()
   @IsString()
-  phone: string; // numéro Mobile Money ex: "0999999999"
+  phone?: string; // requis si method = MOBILE_MONEY
+}
+
+// ─────────────────────────────────────────────
+// DTO pour payer les commandes du jour dans un restaurant
+// ─────────────────────────────────────────────
+
+export class InitiateOrderPaymentDto {
+  @IsString()
+  restaurantId: string;
+
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  method?: PaymentMethod;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  /** Si fourni, ne paie que cette commande précise au lieu de toutes celles dues du jour */
+  @IsOptional()
+  @IsString()
+  orderId?: string;
 }
 
 // ─────────────────────────────────────────────

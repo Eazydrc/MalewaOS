@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Toggle } from "@/components/ui/Toggle";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -120,10 +121,7 @@ function RestaurantProfilTab({ restaurant }: { restaurant: Restaurant }) {
           <p className="text-sm font-bold text-zinc-900 dark:text-white">Restaurant ouvert</p>
           <p className="text-xs text-zinc-400 mt-0.5">Visible aux clients sur la plateforme</p>
         </div>
-        <button type="button" onClick={() => setIsOpen(v => !v)}
-          className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${isOpen ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}>
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${isOpen ? "translate-x-6" : "translate-x-0.5"}`} />
-        </button>
+        <Toggle checked={isOpen} onChange={() => setIsOpen(v => !v)} aria-label="Restaurant ouvert" />
       </div>
 
       {/* Infos principales */}
@@ -372,19 +370,17 @@ function RestaurantAccountPage() {
               </div>
             </div>
           </div>
-          {/* Pills nav */}
-          <div className="flex gap-2 px-3 pb-3 overflow-x-auto"
-            style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none" } as any}>
+          {/* Segmented control — comme dans le dashboard */}
+          <div className="flex gap-1 bg-surface-2 rounded-xl mx-3 mb-3 p-1">
             {TABS.map(t => (
               <button key={t.id} onClick={() => !t.locked && setTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap shrink-0 transition-all no-tap active:scale-95 ${
+                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all no-tap ${
                   t.locked
-                    ? "bg-surface-2 text-text-3 border border-border opacity-50 cursor-not-allowed"
+                    ? "text-text-3 opacity-50 cursor-not-allowed"
                     : tab === t.id
-                      ? "bg-accent text-white shadow-btn"
-                      : "bg-surface-2 text-text-3 border border-border"
+                      ? "bg-bg text-text shadow-card"
+                      : "text-text-3 hover:text-text-2"
                 }`}>
-                <span className="text-[13px]">{t.icon}</span>
                 {t.label}
                 {t.locked && <span className="text-[8px] opacity-70">🔒</span>}
               </button>

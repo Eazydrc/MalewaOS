@@ -17,6 +17,9 @@ const RESERVATION_SELECT = {
   user: {
     select: { id: true, firstName: true, lastName: true, phone: true },
   },
+  table: {
+    select: { id: true, number: true, label: true, seats: true },
+  },
 };
 
 @Injectable()
@@ -135,6 +138,37 @@ export class ReservationsService {
     return this.prisma.reservation.update({
       where: { id },
       data:  { status: 'CANCELLED' },
+      select: RESERVATION_SELECT,
+    });
+  }
+
+  // ── Assigner une table (restaurant / admin) ──────────────────────────────
+
+  async assignTable(id: string, tableId: string | null, userId: string, role: string) {
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id },
+      include: { restaurant: { select: { id: true, ownerId: true } } },
+    });
+    if (!reservation) throw new NotFoundException('Réservation introuvable');
+
+    const isRestaurant = reservation.restaurant.ownerId === userId;
+    if (!isRestaurant && !['ADMIN', 'SUPER_ADMIN'].includes(role)) throw new ForbiddenException();
+
+    if (tableId) {
+      const table = await this.prisma.restaurantTable.findUnique({ where: { id: tableId } });
+      if (!table || table.restaurantId !== reservation.restaurant.id) {
+        throw new NotFoundException('Table introuvable pour ce restaurant');
+      }
+      if (table.seats < reservation.partySize) {
+        throw new BadRequestException(
+          `Cette table ne compte que ${table.seats} place(s) pour ${reservation.partySize} personne(s)`,
+        );
+      }
+    }
+
+    return this.prisma.reservation.update({
+      where: { id },
+      data:  { tableId },
       select: RESERVATION_SELECT,
     });
   }

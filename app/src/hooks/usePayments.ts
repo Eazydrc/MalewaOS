@@ -3,6 +3,11 @@ import { api } from '@/lib/api';
 
 export type PaymentTier = 'MAMAN' | 'ESSENTIEL' | 'CROISSANCE' | 'DOMINATION';
 
+// Doit correspondre à TIER_PRICES dans api/src/payments/dto/payment.dto.ts
+export const TIER_PRICES_CENTS: Record<PaymentTier, number> = {
+  MAMAN: 300, ESSENTIEL: 1000, CROISSANCE: 2500, DOMINATION: 4500,
+};
+
 export const TIER_INFO: Record<PaymentTier, { price: string; label: string; color: string; features: string[] }> = {
   MAMAN:      { price: '$3/mois',  label: 'Maman',      color: 'text-zinc-600 dark:text-zinc-300',    features: ['Menu digital', 'Réservations', 'QR code', 'Horaires'] },
   ESSENTIEL:  { price: '$10/mois', label: 'Essentiel',  color: 'text-sky-600 dark:text-sky-300',      features: ['+ Offres & promos', 'Badges plats', 'Répondre aux avis'] },
@@ -26,8 +31,35 @@ export function usePaymentHistory() {
   });
 }
 
+export type PaymentMethod = 'CARD' | 'MOBILE_MONEY';
+
 export function useInitiatePayment() {
   return useMutation({
-    mutationFn: (tier: PaymentTier) => api.post<{ paymentUrl: string }>('/payments/initiate', { tier }),
+    mutationFn: ({ tier, method, phone }: { tier: PaymentTier; method?: PaymentMethod; phone?: string }) =>
+      api.post<{ paymentUrl?: string; devMode?: boolean }>('/payments/subscribe', { tier, method, phone }),
+  });
+}
+
+// ── Paiement des commandes du jour dans un restaurant ──────────────────────────
+
+export interface OrdersDue {
+  orderIds: string[];
+  totalCents: number;
+  count: number;
+}
+
+export function useOrdersDue(restaurantId: string | undefined) {
+  return useQuery<OrdersDue>({
+    queryKey: ['orders-due', restaurantId],
+    queryFn: () => api.get(`/payments/orders/due?restaurantId=${restaurantId}`),
+    enabled: !!restaurantId,
+    staleTime: 10 * 1000,
+  });
+}
+
+export function usePayOrders() {
+  return useMutation({
+    mutationFn: ({ restaurantId, method, phone, orderId }: { restaurantId: string; method?: PaymentMethod; phone?: string; orderId?: string }) =>
+      api.post<{ paymentUrl?: string; devMode?: boolean }>('/payments/orders/initiate', { restaurantId, method, phone, orderId }),
   });
 }

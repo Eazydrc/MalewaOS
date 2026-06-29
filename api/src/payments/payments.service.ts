@@ -1,8 +1,17 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomBytes } from 'crypto';
-import { SubscriptionTier, TIER_PRICES, CinetPayWebhookDto } from './dto/payment.dto';
+import { SubscriptionTier, TIER_PRICES, PaymentMethod, CinetPayWebhookDto } from './dto/payment.dto';
+
+function channelsFor(method?: PaymentMethod) {
+  if (method === PaymentMethod.CARD) return 'CREDIT_CARD';
+  if (method === PaymentMethod.MOBILE_MONEY) return 'MOBILE_MONEY';
+  return 'ALL';
+}
+
+// Statuts de commande considérés comme "dues" (à payer)
+const PAYABLE_STATUSES = ['PENDING', 'ACCEPTED', 'PREPARING', 'PACKAGING', 'OUT_FOR_DELIVERY', 'READY', 'DELIVERED'];
 
 // Taux approximatif USD→CDF
 const USD_TO_CDF = 2800;
@@ -30,7 +39,7 @@ export class PaymentsService {
   // Initier un paiement CinetPay
   // ─────────────────────────────────────────────
 
-  async initiatePayment(ownerId: string, tier: SubscriptionTier, phone: string) {
+  async initiatePayment(ownerId: string, tier: SubscriptionTier, phone?: string, method?: PaymentMethod) {
     const amountUsd = TIER_PRICES[tier];
     if (!amountUsd) throw new BadRequestException('Tier invalide');
 
@@ -74,9 +83,102 @@ export class PaymentsService {
       description:           `Abonnement Elengi — Pack ${tier}`,
       notify_url:            this.notifyUrl,
       return_url:            this.returnUrl,
-      channels:              'MOBILE_MONEY',
+      channels:              channelsFor(method),
       metadata:              JSON.stringify({ userId: ownerId, restaurantId: restaurant.id, tier }),
-      customer_phone_number: phone,
+      ...(phone ? { customer_phone_number: phone } : {}),
+    };
+
+    const res  = await fetch('https://api-checkout.cinetpay.com/v2/payment', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const data = (await res.json()) as {
+      code?: string;
+      message?: string;
+      data?: { payment_url?: string };
+    };
+
+    if (data.code !== '201') {
+      this.logger.error('CinetPay error', data);
+      throw new BadRequestException(data.message ?? 'Erreur CinetPay');
+    }
+
+    return { paymentUrl: data.data?.payment_url, transactionId };
+  }
+
+  // ─────────────────────────────────────────────
+  // Commandes du jour à payer (client, dans un restaurant)
+  // ─────────────────────────────────────────────
+
+  async getOrdersDue(userId: string, restaurantId: string, orderId?: string) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        userId,
+        restaurantId,
+        isPaid: false,
+        status: { in: PAYABLE_STATUSES as any },
+        ...(orderId ? { id: orderId } : { createdAt: { gte: startOfDay } }),
+      },
+      select: { id: true, totalCents: true },
+    });
+
+    return {
+      orderIds:   orders.map(o => o.id),
+      totalCents: orders.reduce((sum, o) => sum + o.totalCents, 0),
+      count:      orders.length,
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // Initier le paiement d'une commande précise, ou de toutes celles dues du jour
+  // ─────────────────────────────────────────────
+
+  async initiateOrderPayment(userId: string, restaurantId: string, phone?: string, method?: PaymentMethod, orderId?: string) {
+    const due = await this.getOrdersDue(userId, restaurantId, orderId);
+    if (due.count === 0) throw new BadRequestException('Aucune commande à payer');
+
+    const amountUsd  = due.totalCents;
+    const amountCdf  = Math.round((amountUsd / 100) * USD_TO_CDF);
+    const transactionId = `ELENGI-ORD-${Date.now()}-${randomBytes(4).toString('hex').toUpperCase()}`;
+
+    await this.prisma.orderPaymentTransaction.create({
+      data: {
+        restaurantId,
+        userId,
+        orderIds: due.orderIds,
+        amountUsd,
+        transactionId,
+        status: 'PENDING',
+      },
+    });
+
+    if (!this.apiKey || this.apiKey === 'YOUR_CINETPAY_API_KEY') {
+      if (process.env.NODE_ENV === 'production') {
+        throw new InternalServerErrorException(
+          'CinetPay non configuré : CINETPAY_API_KEY manquante ou invalide en production',
+        );
+      }
+      this.logger.warn('CinetPay non configuré — simulation paiement commandes réussi');
+      await this.handleOrderPaymentSuccess(transactionId);
+      return { devMode: true, message: 'Paiement simulé (dev)', amountUsd, transactionId };
+    }
+
+    const payload = {
+      apikey:                this.apiKey,
+      site_id:               this.siteId,
+      transaction_id:        transactionId,
+      amount:                amountCdf,
+      currency:              'CDF',
+      description:           `Elengi — règlement commande(s) restaurant`,
+      notify_url:            this.notifyUrl,
+      return_url:            this.returnUrl,
+      channels:              channelsFor(method),
+      metadata:              JSON.stringify({ userId, restaurantId, orderIds: due.orderIds }),
+      ...(phone ? { customer_phone_number: phone } : {}),
     };
 
     const res  = await fetch('https://api-checkout.cinetpay.com/v2/payment', {
@@ -108,6 +210,10 @@ export class PaymentsService {
       this.logger.warn('Webhook reçu sans transaction_id');
       return { message: 'ignored' };
     }
+
+    // Paiement de commande(s) ?
+    const orderTx = await this.prisma.orderPaymentTransaction.findUnique({ where: { transactionId } });
+    if (orderTx) return this.handleOrderPaymentWebhook(transactionId, orderTx);
 
     const tx = await this.prisma.paymentTransaction.findUnique({ where: { transactionId } });
     if (!tx) {
@@ -154,6 +260,122 @@ export class PaymentsService {
 
     await this.handleSuccess(transactionId);
     return { message: 'OK' };
+  }
+
+  // ─────────────────────────────────────────────
+  // Webhook : paiement de commande(s)
+  // ─────────────────────────────────────────────
+
+  private async handleOrderPaymentWebhook(
+    transactionId: string,
+    tx: { amountUsd: number },
+  ) {
+    if (!this.apiKey || this.apiKey === 'YOUR_CINETPAY_API_KEY') {
+      this.logger.warn('CinetPay non configuré — webhook commande ignoré (vérification impossible)');
+      return { message: 'ignored' };
+    }
+
+    const verif = await this.verifyTransaction(transactionId);
+    if (!verif) {
+      this.logger.warn(`Vérification CinetPay impossible pour ${transactionId}`);
+      return { message: 'ignored' };
+    }
+
+    if (verif.status !== 'SUCCESS') {
+      await this.prisma.orderPaymentTransaction.updateMany({
+        where: { transactionId },
+        data:  { status: 'FAILED' },
+      });
+      this.logger.warn(`Paiement commande échoué (vérifié) : ${transactionId}`);
+      return { message: 'OK' };
+    }
+
+    const expectedCdf = Math.round((tx.amountUsd / 100) * USD_TO_CDF);
+    if (Math.abs(verif.amount - expectedCdf) > 1 || verif.currency !== 'CDF') {
+      this.logger.error(
+        `Montant invalide pour ${transactionId} : attendu ${expectedCdf} CDF, reçu ${verif.amount} ${verif.currency}`,
+      );
+      await this.prisma.orderPaymentTransaction.updateMany({
+        where: { transactionId },
+        data:  { status: 'FAILED' },
+      });
+      return { message: 'OK' };
+    }
+
+    await this.handleOrderPaymentSuccess(transactionId);
+    return { message: 'OK' };
+  }
+
+  private async handleOrderPaymentSuccess(transactionId: string) {
+    const tx = await this.prisma.orderPaymentTransaction.findUnique({ where: { transactionId } });
+    if (!tx) {
+      this.logger.warn(`Transaction commande introuvable : ${transactionId}`);
+      return;
+    }
+    if (tx.status === 'SUCCESS') {
+      this.logger.log(`Transaction commande déjà traitée : ${transactionId}`);
+      return; // idempotent
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.orderPaymentTransaction.update({
+        where: { transactionId },
+        data:  { status: 'SUCCESS' },
+      }),
+      this.prisma.order.updateMany({
+        where: { id: { in: tx.orderIds } },
+        data:  { isPaid: true, paidAt: new Date() },
+      }),
+    ]);
+
+    await this.awardPoints(tx.userId, tx.amountUsd, 'Paiement de commande(s)');
+
+    this.logger.log(`Commandes payées (${tx.orderIds.length}) pour transaction ${transactionId}`);
+  }
+
+  // ─────────────────────────────────────────────
+  // Marquer une commande payée en espèces (restaurant)
+  // ─────────────────────────────────────────────
+
+  async markOrderPaidCash(orderId: string, actorId: string, role: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { restaurant: { select: { ownerId: true } } },
+    });
+    if (!order) throw new NotFoundException('Commande introuvable');
+
+    const isOwner = order.restaurant.ownerId === actorId;
+    if (!isOwner && role !== 'ADMIN') throw new ForbiddenException();
+
+    if (order.isPaid) return order; // idempotent
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data:  { isPaid: true, paidAt: new Date() },
+    });
+
+    await this.awardPoints(order.userId, order.totalCents, 'Paiement en espèces');
+
+    return updated;
+  }
+
+  // ─────────────────────────────────────────────
+  // Attribution de points fidélité (1 point par $1 dépensé)
+  // ─────────────────────────────────────────────
+
+  private async awardPoints(userId: string, amountCents: number, reason: string) {
+    const points = Math.floor(amountCents / 100);
+    if (points <= 0) return;
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data:  { points: { increment: points } },
+      }),
+      this.prisma.pointTransaction.create({
+        data: { userId, amount: points, type: 'EARN', reason },
+      }),
+    ]);
   }
 
   // ─────────────────────────────────────────────

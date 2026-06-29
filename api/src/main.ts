@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
+import { corsOriginCallback } from './common/cors.util';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -54,27 +55,8 @@ async function bootstrap() {
     if (!frontendUrl.startsWith('https://')) throw new Error('[FATAL] FRONTEND_URL doit utiliser HTTPS en production');
   }
 
-  const allowedOrigins = frontendUrl
-    ? [frontendUrl]
-    : ['http://localhost:5173', 'http://localhost:3001'];
-
   app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // En dev : toutes les origines localhost sont autorisées (Vite peut changer de port)
-      if (nodeEnv === 'development') {
-        if (!origin) return callback(null, true);
-        if (
-          origin.startsWith('http://localhost') ||
-          origin.startsWith('http://127.0.0.1') ||
-          origin.startsWith('http://192.168.')  ||
-          origin.startsWith('http://10.')
-        ) {
-          return callback(null, true);
-        }
-      }
-      if (allowedOrigins.includes(origin ?? '')) return callback(null, true);
-      callback(new Error(`CORS bloqué pour l'origine : ${origin}`));
-    },
+    origin: corsOriginCallback,
     credentials:    true,                              // indispensable pour les cookies cross-origin
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['X-Request-Id'],
@@ -84,6 +66,6 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Elengi API running on http://localhost:${port}/api/v1`);
-  console.log(`   NODE_ENV: ${nodeEnv} | CORS: ${allowedOrigins.join(', ')}`);
+  console.log(`   NODE_ENV: ${nodeEnv} | CORS: ${frontendUrl ?? 'localhost (dev)'}`);
 }
 bootstrap();

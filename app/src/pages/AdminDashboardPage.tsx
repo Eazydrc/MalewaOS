@@ -11,6 +11,7 @@ import {
   useAdminStats,
   useAdminUsers,
   useAdminRestaurants,
+  useAdminRestaurantMenu,
   useAdminOrders,
   useChangeUserRole,
   useToggleUserStatus,
@@ -314,10 +315,44 @@ function UsersTab({ currentUserRole }: { currentUserRole: string }) {
 
 // ─── Restaurants ──────────────────────────────────────────────────────────────
 
+function RestaurantMenuModal({ restaurantId, onClose }: { restaurantId: string; onClose: () => void }) {
+  const { data, isLoading } = useAdminRestaurantMenu(restaurantId);
+  const sections = data?.menus?.[0]?.sections ?? [];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-surface rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-text">{data?.name ?? "Menu"}</h3>
+          <button onClick={onClose} className="text-text-3 hover:text-text text-sm">✕</button>
+        </div>
+        {isLoading ? (
+          <Skeleton height={120} />
+        ) : sections.length === 0 ? (
+          <p className="text-sm text-text-3">Aucun menu pour ce restaurant.</p>
+        ) : (
+          sections.map(s => (
+            <div key={s.id} className="space-y-1.5">
+              <p className="text-xs font-bold text-text-3 uppercase tracking-wider">{s.title}</p>
+              {s.items.map(item => (
+                <div key={item.id} className="flex items-center justify-between text-sm">
+                  <span className={item.isAvailable ? "text-text" : "text-text-3 line-through"}>{item.name}</span>
+                  <span className="font-semibold text-text-2">${(item.priceUsdCents / 100).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RestaurantsTab({ onNewRestaurant }: { onNewRestaurant: () => void }) {
   const [search, setSearch] = useState("");
   const [subFilter, setSub] = useState<SubTier | "">("");
   const [page, setPage] = useState(1);
+  const [menuRestaurantId, setMenuRestaurantId] = useState<string | null>(null);
 
   const { data, isLoading } = useAdminRestaurants({ search: search || undefined, subscription: (subFilter as SubTier) || undefined, page });
   const toggleStatus = useToggleRestaurantStatus();
@@ -379,6 +414,10 @@ function RestaurantsTab({ onNewRestaurant }: { onNewRestaurant: () => void }) {
                     className="text-xs h-8 px-2 rounded-lg border border-border bg-surface-2 text-text outline-none flex-1">
                     {TIERS.map(t => <option key={t} value={t}>{TIER_META[t]?.label ?? t}</option>)}
                   </select>
+                  <button onClick={() => setMenuRestaurantId(r.id)}
+                    className="text-xs px-3 py-1.5 rounded-lg font-semibold shrink-0 bg-surface-2 text-text-2 hover:bg-surface-3">
+                    🍽️ Menu
+                  </button>
                   <button onClick={() => handleToggle(r)} disabled={toggleStatus.isPending}
                     className={`text-xs px-3 py-1.5 rounded-lg font-semibold shrink-0 ${r.isActive ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"}`}>
                     {r.isActive ? "Désactiver" : "Activer"}
@@ -391,6 +430,9 @@ function RestaurantsTab({ onNewRestaurant }: { onNewRestaurant: () => void }) {
         <Pager page={page} pages={data?.meta.pages ?? 1} total={data?.meta.total ?? 0} label="restaurants"
           onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
       </div>
+      {menuRestaurantId && (
+        <RestaurantMenuModal restaurantId={menuRestaurantId} onClose={() => setMenuRestaurantId(null)} />
+      )}
     </div>
   );
 }
@@ -513,15 +555,14 @@ export default function AdminDashboardPage() {
       <AppLayout title="Administration" headerRight={headerRight} noPadding>
         <CreateRestaurantModal open={createOpen} onClose={() => setCreateOpen(false)} />
 
-        {/* Tabs */}
-        <div className="border-b border-border bg-surface/95 sticky top-14 z-20">
-          <div className="flex px-6 overflow-x-auto" style={{ scrollbarWidth: "none" } as any}>
+        {/* Tabs — segmented control */}
+        <div className="bg-surface/95 sticky top-14 z-20 px-6 py-3 border-b border-border">
+          <div className="flex gap-1 bg-surface-2 rounded-xl p-1 max-w-2xl">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                  tab === t.id ? "border-accent text-accent" : "border-transparent text-text-3 hover:text-text"
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  tab === t.id ? "bg-bg text-text shadow-card" : "text-text-3 hover:text-text-2"
                 }`}>
-                <span>{t.icon}</span>
                 {t.label}
               </button>
             ))}
@@ -576,16 +617,14 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      {/* ── Tabs ── */}
-      <div className="card border-b border-border/60 sticky top-14 z-30">
-        <div className="flex overflow-x-auto px-2"
-          style={{ WebkitOverflowScrolling: "touch", msOverflowStyle: "none", scrollbarWidth: "none" } as any}>
+      {/* ── Tabs — segmented control ── */}
+      <div className="sticky top-14 z-30 px-3 py-2 bg-surface border-b border-border/60">
+        <div className="flex gap-1 bg-surface-2 rounded-xl p-1">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-3.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                tab === t.id ? "border-accent text-accent" : "border-transparent text-text-3 hover:text-text"
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                tab === t.id ? "bg-bg text-text shadow-card" : "text-text-3 hover:text-text-2"
               }`}>
-              <span>{t.icon}</span>
               {t.label}
             </button>
           ))}

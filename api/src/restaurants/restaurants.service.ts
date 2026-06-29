@@ -77,7 +77,7 @@ export class RestaurantsService {
     if (!restaurant) throw new NotFoundException('Restaurant introuvable');
 
     // Exclure les champs sensibles et normaliser l'adresse
-    const { ownerId, structuredAddress, address: addressRaw, ...safe } = restaurant;
+    const { ownerId: _ownerId, structuredAddress, address: addressRaw, menus, ...safe } = restaurant;
 
     // Construire un objet adresse unifié pour le frontend
     const address = {
@@ -88,7 +88,10 @@ export class RestaurantsService {
       full:      addressRaw ?? null,  // adresse textuelle complète (fallback)
     };
 
-    return { ...safe, address };
+    // Le frontend attend un menu unique ({ sections }), pas le tableau Prisma `menus`
+    const menu = { sections: menus[0]?.sections ?? [] };
+
+    return { ...safe, address, menu };
   }
 
   async findAll(query: QueryRestaurantDto) {

@@ -1,5 +1,6 @@
 import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
+import { Toggle } from "@/components/ui/Toggle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import {
@@ -8,6 +9,21 @@ import {
   MenuSection, MenuItem,
 } from "@/hooks/useMenu";
 import { fc } from "./shared";
+
+// ─── Miniature plat (avec repli si l'image ne charge pas) ──────────────────────
+
+function ItemThumbnail({ item, size = 16 }: { item: MenuItem; size?: 12 | 16 }) {
+  const [failed, setFailed] = useState(false);
+  const dim = size === 12 ? "w-12 h-12 text-xl" : "w-16 h-16 text-2xl";
+  return (
+    <div className={`${dim} rounded-xl overflow-hidden bg-surface-2 shrink-0 flex items-center justify-center`}>
+      {item.imageUrl && !failed
+        ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" onError={() => setFailed(true)} />
+        : "🍽️"
+      }
+    </div>
+  );
+}
 
 // ─── Badges plat ──────────────────────────────────────────────────────────────
 
@@ -69,12 +85,7 @@ function MenuDisplay({
             {section.items?.map((item: MenuItem) => (
               <div key={item.id} className={`flex items-center gap-3 px-4 py-3 transition-colors ${!item.isAvailable ? "bg-surface-2 opacity-60" : "bg-surface"}`}>
                 {/* Photo */}
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface-2 shrink-0 flex items-center justify-center text-2xl">
-                  {item.imageUrl
-                    ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                    : "🍽️"
-                  }
-                </div>
+                <ItemThumbnail item={item} />
 
                 {/* Infos */}
                 <div className="flex-1 min-w-0">
@@ -96,11 +107,7 @@ function MenuDisplay({
                 </div>
 
                 {/* Toggle disponibilité */}
-                <button
-                  onClick={() => toggleItem.mutate(item.id)}
-                  className={`shrink-0 relative w-11 h-6 rounded-full transition-colors ${item.isAvailable ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"}`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${item.isAvailable ? "translate-x-5" : "translate-x-0.5"}`} />
-                </button>
+                <Toggle checked={item.isAvailable} onChange={() => toggleItem.mutate(item.id)} aria-label={`Disponibilité de ${item.name}`} />
               </div>
             ))}
           </div>
@@ -138,7 +145,7 @@ function ItemForm({ initial, onSave, onCancel, loading }: {
     onSave({ name, description: desc, priceUsdCents: cents, promoPrice: promo, imageUrl: img, isHot, isLastUnits: isLast });
   }
 
-  const Toggle = ({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) => (
+  const BadgeToggle = ({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) => (
     <button type="button" onClick={onChange}
       className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${value ? "bg-accent text-white border-accent" : "border-border text-text-3 hover:border-accent/40"}`}>
       {label}
@@ -177,8 +184,8 @@ function ItemForm({ initial, onSave, onCancel, loading }: {
 
       {/* Badges */}
       <div className="flex flex-wrap gap-2">
-        <Toggle label="🔥 Vente chaude"    value={isHot}  onChange={() => setHot(v => !v)} />
-        <Toggle label="⚡ Dernières unités" value={isLast} onChange={() => setLast(v => !v)} />
+        <BadgeToggle label="🔥 Vente chaude"    value={isHot}  onChange={() => setHot(v => !v)} />
+        <BadgeToggle label="⚡ Dernières unités" value={isLast} onChange={() => setLast(v => !v)} />
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -298,12 +305,7 @@ function MenuEdit({ onClose }: { onClose: () => void }) {
                   </div>
                 ) : (
                   <div className={`flex items-center gap-3 px-4 py-3 ${!item.isAvailable ? "opacity-50" : ""}`}>
-                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-surface-2 shrink-0 flex items-center justify-center text-xl">
-                      {item.imageUrl
-                        ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                        : "🍽️"
-                      }
-                    </div>
+                    <ItemThumbnail item={item} size={12} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-text">{item.name}</p>
                       <div className="flex items-center gap-2">

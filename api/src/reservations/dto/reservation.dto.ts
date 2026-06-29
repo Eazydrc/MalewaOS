@@ -41,3 +41,9 @@ export class UpdateStatusDto {
   @IsEnum(['CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'], { message: 'Statut invalide' })
   status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
 }
+
+export class AssignTableDto {
+  @IsOptional()
+  @IsString()
+  tableId?: string | null;
+}
