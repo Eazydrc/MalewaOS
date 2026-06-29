@@ -178,57 +178,57 @@ export default function TableOrderPage() {
                 <h2 className="text-base font-black text-text">{section.title}</h2>
                 <div className="flex-1 h-px bg-border" />
               </div>
-              <div className="space-y-3">
+              <div className="divide-y divide-border">
                 {section.items.map((item: any) => {
                   const qty = getQty(item.id);
                   const price = item.promoPrice ?? item.priceUsdCents;
                   return (
-                    <div key={item.id} className="flex gap-3 bg-surface rounded-2xl p-3 border border-border">
-                      {item.imageUrl ? (
-                        <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
-                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-20 h-20 rounded-xl bg-surface-2 shrink-0 flex items-center justify-center text-2xl">🍽️</div>
-                      )}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div key={item.id} className="flex items-start gap-3 py-4">
+                      {/* Infos — à gauche */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="font-bold text-text text-sm leading-tight">{item.name}</p>
+                        {item.description && <p className="text-xs text-text-3 line-clamp-2">{item.description}</p>}
                         <div>
-                          <div className="flex flex-wrap gap-1 mb-0.5">
-                            {item.isHot       && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400 rounded text-[10px] font-bold">🔥</span>}
-                            {item.isLastUnits && <span className="px-1.5 py-0.5 bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 rounded text-[10px] font-bold">⚡</span>}
-                          </div>
-                          <p className="font-bold text-text text-sm leading-tight">{item.name}</p>
-                          {item.description && <p className="text-xs text-text-3 mt-0.5 line-clamp-2">{item.description}</p>}
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <div>
-                            <span className="text-sm font-black text-accent">{fc(price)}</span>
-                            {item.promoPrice != null && (
-                              <span className="text-xs text-text-3 line-through ml-1.5">{fc(item.priceUsdCents)}</span>
-                            )}
-                          </div>
-                          {/* Contrôles quantité */}
-                          {restaurant.isOpen && (
-                            qty === 0 ? (
-                              <button onClick={() => addToCart(item)}
-                                className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xl font-bold shadow-btn active:scale-95 transition-transform">
-                                +
-                              </button>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => removeFromCart(item.id)}
-                                  className="w-7 h-7 rounded-full border border-border text-text-3 flex items-center justify-center text-lg font-bold active:scale-95 transition-transform">
-                                  −
-                                </button>
-                                <span className="text-sm font-black text-accent w-5 text-center">{qty}</span>
-                                <button onClick={() => addToCart(item)}
-                                  className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-lg font-bold active:scale-95 transition-transform">
-                                  +
-                                </button>
-                              </div>
-                            )
+                          <span className="text-sm font-semibold text-text">{fc(price)}</span>
+                          {item.promoPrice != null && (
+                            <span className="text-xs text-text-3 line-through ml-1.5">{fc(item.priceUsdCents)}</span>
                           )}
                         </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.isHot       && <span className="px-1.5 py-0.5 bg-surface-2 text-text-2 rounded text-[10px] font-bold">🔥 Populaire</span>}
+                          {item.isLastUnits && <span className="px-1.5 py-0.5 bg-surface-2 text-text-2 rounded text-[10px] font-bold">⚡ Derniers</span>}
+                        </div>
+                      </div>
+
+                      {/* Image + contrôles — à droite */}
+                      <div className="relative w-24 h-24 shrink-0">
+                        <div className="w-full h-full rounded-xl overflow-hidden bg-surface-2">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
+                          )}
+                        </div>
+                        {restaurant.isOpen && (
+                          qty === 0 ? (
+                            <button onClick={() => addToCart(item)}
+                              className="absolute -bottom-2 -right-1 w-8 h-8 rounded-full bg-text text-bg flex items-center justify-center text-lg font-bold active:scale-90 transition-transform shadow-card border-2 border-bg">
+                              +
+                            </button>
+                          ) : (
+                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-bg border border-border rounded-full px-1 py-1 shadow-card">
+                              <button onClick={() => removeFromCart(item.id)}
+                                className="w-6 h-6 rounded-full bg-surface-2 text-text flex items-center justify-center text-sm font-bold active:scale-90 transition-transform">
+                                −
+                              </button>
+                              <span className="text-xs font-bold text-text w-3 text-center">{qty}</span>
+                              <button onClick={() => addToCart(item)}
+                                className="w-6 h-6 rounded-full bg-text text-bg flex items-center justify-center text-sm font-bold active:scale-90 transition-transform">
+                                +
+                              </button>
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   );

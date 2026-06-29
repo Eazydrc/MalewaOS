@@ -175,57 +175,41 @@ export default function PublicMenuPage() {
                 <span className="text-xs text-text-3">{section.items.length} plats</span>
               </div>
 
-              {/* Items */}
-              <div className="space-y-3">
+              {/* Items — texte à gauche, photo à droite (façon Uber Eats) */}
+              <div className="divide-y divide-border">
                 {section.items.map((item: any) => (
-                  <div key={item.id} className="flex gap-3 bg-surface rounded-2xl p-3 border border-border">
-                    {/* Image */}
-                    {item.imageUrl ? (
-                      <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 rounded-xl bg-surface-2 shrink-0 flex items-center justify-center text-2xl">
-                        🍽️
-                      </div>
-                    )}
-
+                  <div key={item.id} className="flex items-start gap-3 py-4">
                     {/* Infos */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        {/* Badges */}
-                        <div className="flex flex-wrap gap-1 mb-1">
-                          {item.isHot && (
-                            <span className="px-1.5 py-0.5 bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400 rounded text-[10px] font-bold">
-                              🔥 Populaire
-                            </span>
-                          )}
-                          {item.isLastUnits && (
-                            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 rounded text-[10px] font-bold">
-                              ⚡ Dernières unités
-                            </span>
-                          )}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <p className="font-bold text-text text-sm leading-tight">{item.name}</p>
+                      {item.description && (
+                        <p className="text-xs text-text-3 line-clamp-2">{item.description}</p>
+                      )}
+                      {item.promoPrice != null ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-text">{fc(item.promoPrice)}</span>
+                          <span className="text-xs text-text-3 line-through">{fc(item.priceUsdCents)}</span>
                         </div>
-                        <p className="font-bold text-text text-sm leading-tight">{item.name}</p>
-                        {item.description && (
-                          <p className="text-xs text-text-3 mt-0.5 line-clamp-2">{item.description}</p>
+                      ) : (
+                        <span className="text-sm font-semibold text-text">{fc(item.priceUsdCents)}</span>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {item.isHot && (
+                          <span className="px-1.5 py-0.5 bg-surface-2 text-text-2 rounded text-[10px] font-bold">🔥 Populaire</span>
+                        )}
+                        {item.isLastUnits && (
+                          <span className="px-1.5 py-0.5 bg-surface-2 text-text-2 rounded text-[10px] font-bold">⚡ Derniers</span>
                         )}
                       </div>
+                    </div>
 
-                      {/* Prix */}
-                      <div className="flex items-center justify-between mt-2">
-                        {item.promoPrice != null ? (
-                          <div>
-                            <span className="text-sm font-black text-accent">{fc(item.promoPrice)}</span>
-                            <span className="text-xs text-text-3 line-through ml-1.5">{fc(item.priceUsdCents)}</span>
-                            <span className="ml-1.5 px-1 py-0.5 bg-accent/10 text-accent rounded text-[10px] font-bold">
-                              🏷️ Promo
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-black text-accent">{fc(item.priceUsdCents)}</span>
-                        )}
-                      </div>
+                    {/* Image */}
+                    <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 bg-surface-2">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
+                      )}
                     </div>
                   </div>
                 ))}
