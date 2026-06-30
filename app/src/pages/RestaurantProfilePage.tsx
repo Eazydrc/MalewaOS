@@ -85,11 +85,16 @@ export default function RestaurantProfilePage() {
     </>
   );
 
+  // Restaurants livraison uniquement : pas de gestion de tables (pas de service sur place)
+  const visibleGroups = restaurant?.restaurantType === "LIVRAISON"
+    ? TAB_GROUPS.map(g => ({ ...g, tabs: g.tabs.filter(t => t.id !== "tables") }))
+    : TAB_GROUPS;
+
   // Grille d'accès — tuiles douces groupées par thème, plutôt qu'une
   // longue barre d'onglets à faire défiler latéralement
   const launcherGrid = (
     <div className="space-y-6">
-      {TAB_GROUPS.map(group => (
+      {visibleGroups.map(group => (
         <div key={group.label} className="space-y-2.5">
           <p className="text-xs font-bold text-text-3 uppercase tracking-wider px-1">{group.label}</p>
           <div className="grid grid-cols-3 gap-2.5">

@@ -383,11 +383,13 @@ model Order {
   notes        String?
   isPaid       Boolean          @default(false)
   paidAt       DateTime?
+  refusalReason String?         // motif obligatoire si le restaurant refuse la commande
 
   // Livraison
   deliveryAddress  String?   // adresse saisie par le client
   deliveryLat      Float?    // coordonnées GPS du client (optionnel)
   deliveryLng      Float?
+  verificationCode String?   @unique // code/QR unique généré à la création — vérifié au retrait et à la livraison
 
   // Livreur assigné
   assignedDriverId  String?

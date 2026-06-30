@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Put, Param, Body, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto, UpdateOrderStatusDto, AssignDriverDto, UpdateDriverLocationDto } from './dto/order.dto';
+import { CreateOrderDto, UpdateOrderStatusDto, AssignDriverDto, UpdateDriverLocationDto, RefuseOrderDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator';
 
@@ -81,5 +81,10 @@ export class OrdersController {
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto, @CurrentUser() user: JwtUser) {
     return this.orders.updateStatus(id, dto, user.id, user.role);
+  }
+
+  @Patch(':id/refuse')
+  refuse(@Param('id') id: string, @Body() dto: RefuseOrderDto, @CurrentUser() user: JwtUser) {
+    return this.orders.refuse(id, dto.reason, user.id, user.role);
   }
 }

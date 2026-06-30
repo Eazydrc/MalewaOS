@@ -60,6 +60,12 @@ export class UpdateOrderStatusDto {
   status: 'ACCEPTED' | 'PREPARING' | 'PACKAGING' | 'OUT_FOR_DELIVERY' | 'READY' | 'DELIVERED' | 'CANCELLED';
 }
 
+export class RefuseOrderDto {
+  @IsString()
+  @MaxLength(300)
+  reason: string;
+}
+
 export class AssignDriverDto {
   @IsString()
   driverId: string;

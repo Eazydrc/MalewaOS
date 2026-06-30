@@ -26,6 +26,8 @@ interface RestaurantOrder {
   notes?: string | null;
   totalCents: number;
   isPaid: boolean;
+  verificationCode?: string | null;
+  refusalReason?: string | null;
   user?: { firstName?: string; lastName?: string; phone?: string };
   table?: { number?: number; label?: string } | null;
   items: OrderItem[];
@@ -105,7 +107,7 @@ function OrderSummaryRow({ order, onOpen }: { order: RestaurantOrder; onOpen: ()
 
 // ── Détail complet — ouvert depuis la liste, seul endroit où agir sur la commande ──
 
-function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAssignDriver, assigning, onMarkPaidCash, markingPaid }: {
+function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAssignDriver, assigning, onMarkPaidCash, markingPaid, onRefuse, refusing }: {
   order: RestaurantOrder;
   onClose: () => void;
   onAdvance: (id: string, status: OrderStatus) => void;
@@ -115,6 +117,8 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
   assigning: boolean;
   onMarkPaidCash: (id: string) => void;
   markingPaid: boolean;
+  onRefuse: (id: string, reason: string) => void;
+  refusing: boolean;
 }) {
   const fulfillment = fulfillmentOf(order);
   const isDelivery = fulfillment === "DELIVERY";
@@ -123,6 +127,8 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
   const meta = FULFILLMENT_META[fulfillment];
   const FulfillmentIcon = meta.icon;
   const initials = `${order.user?.firstName?.[0] ?? ""}${order.user?.lastName?.[0] ?? ""}`.toUpperCase();
+  const [showRefuseForm, setShowRefuseForm] = useState(false);
+  const [refuseReason, setRefuseReason] = useState("");
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
@@ -171,6 +177,19 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
 
           {order.notes && <p className="text-xs italic text-text-3 bg-surface-2 rounded-xl px-3 py-2">"{order.notes}"</p>}
 
+          {order.verificationCode && order.status !== "CANCELLED" && (
+            <div className="flex items-center justify-between bg-surface-2 rounded-xl px-3 py-2.5">
+              <span className="text-xs font-semibold text-text-2">Code de vérification</span>
+              <span className="text-base font-black tracking-widest text-text">{order.verificationCode}</span>
+            </div>
+          )}
+
+          {order.status === "CANCELLED" && order.refusalReason && (
+            <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 rounded-xl px-3 py-2">
+              Refusée — {order.refusalReason}
+            </p>
+          )}
+
           <div className="border-t border-border pt-4">
             <OrderStepper status={order.status} fulfillment={fulfillment} />
           </div>
@@ -211,6 +230,43 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
               </button>
             );
           })()}
+
+          {order.status === "PENDING" && !showRefuseForm && (
+            <button
+              onClick={() => setShowRefuseForm(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-surface-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+            >
+              Refuser la commande
+            </button>
+          )}
+
+          {order.status === "PENDING" && showRefuseForm && (
+            <div className="space-y-2 bg-surface-2 rounded-xl p-3">
+              <label className="text-xs font-semibold text-text-2">Motif du refus (obligatoire)</label>
+              <textarea
+                value={refuseReason}
+                onChange={(e) => setRefuseReason(e.target.value)}
+                placeholder="Ex : plat indisponible, restaurant fermé…"
+                rows={2}
+                className="w-full text-sm rounded-lg border border-border bg-surface px-3 py-2 resize-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowRefuseForm(false); setRefuseReason(""); }}
+                  className="flex-1 py-2 rounded-lg text-xs font-bold bg-surface text-text-2"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => onRefuse(order.id, refuseReason)}
+                  disabled={refusing || !refuseReason.trim()}
+                  className="flex-1 py-2 rounded-lg text-xs font-bold bg-red-600 text-white disabled:opacity-50"
+                >
+                  Confirmer le refus
+                </button>
+              </div>
+            </div>
+          )}
 
           {!order.isPaid && order.status !== "CANCELLED" && (
             <button
@@ -265,6 +321,15 @@ export default function OrdersConsolePage() {
 
   const markPaidCash = useMutation({
     mutationFn: (orderId: string) => api.post(`/payments/orders/${orderId}/mark-paid-cash`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      setOpenOrderId(null);
+    },
+  });
+
+  const refuseOrder = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.patch(`/orders/${id}/refuse`, { reason }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["restaurant-orders"] });
       setOpenOrderId(null);
@@ -366,6 +431,8 @@ export default function OrdersConsolePage() {
           assigning={assignDriver.isPending}
           onMarkPaidCash={(id) => markPaidCash.mutate(id)}
           markingPaid={markPaidCash.isPending}
+          onRefuse={(id, reason) => refuseOrder.mutate({ id, reason })}
+          refusing={refuseOrder.isPending}
         />
       )}
     </AppLayout>

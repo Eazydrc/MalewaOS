@@ -102,6 +102,7 @@ export class OrdersService {
         deliveryLng:     dto.deliveryLng     ?? null,
         totalCents,
         notes: dto.notes,
+        verificationCode: await this.generateVerificationCode(),
         items: { create: orderItems },
       },
       include: {
@@ -358,5 +359,51 @@ export class OrdersService {
     });
     this.gateway.emitOrderStatus(order.restaurant.id, order.userId, updated);
     return updated;
+  }
+
+  // ── Refuser une commande (restaurant/admin) — motif obligatoire ──────────
+
+  async refuse(id: string, reason: string, userId: string, role: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { restaurant: { select: { id: true, ownerId: true } } },
+    });
+    if (!order) throw new NotFoundException('Commande introuvable');
+
+    const isOwner = order.restaurant.ownerId === userId;
+    if (!isOwner && role !== 'ADMIN') throw new ForbiddenException();
+
+    if (order.status !== 'PENDING') {
+      throw new BadRequestException('Seules les commandes en attente peuvent être refusées');
+    }
+    if (!reason?.trim()) {
+      throw new BadRequestException('Le motif de refus est obligatoire');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data:  { status: 'CANCELLED', refusalReason: reason.trim() },
+      include: { items: true },
+    });
+
+    this.notifications.sendToUser(order.userId, {
+      title: '❌ Commande refusée',
+      body: `Motif : ${reason.trim()}`,
+      url: '/commander',
+    }).catch((err) => this.logger.warn(`Notification refus échouée (${id}): ${err.message}`));
+
+    this.gateway.emitOrderStatus(order.restaurant.id, order.userId, updated);
+    return updated;
+  }
+
+  // ── Génère un code de vérification unique (retrait + livraison) ──────────
+
+  private async generateVerificationCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const existing = await this.prisma.order.findUnique({ where: { verificationCode: code } });
+      if (!existing) return code;
+    }
+    throw new Error('Impossible de générer un code de vérification unique');
   }
 }
