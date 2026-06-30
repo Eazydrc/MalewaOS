@@ -122,6 +122,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Livreur — disponibilité et position persistante (hors livraison active)
+  isAvailableForDelivery Boolean   @default(false)
+  currentLat             Float?
+  currentLng             Float?
+  availabilityUpdatedAt  DateTime?
+
   // Adresse structurée (optionnelle)
   addressId String?
   address   Address? @relation(fields: [addressId], references: [id])
@@ -384,6 +390,7 @@ model Order {
   isPaid       Boolean          @default(false)
   paidAt       DateTime?
   refusalReason String?         // motif obligatoire si le restaurant refuse la commande
+  searchingDriver Boolean       @default(false) // true pendant le broadcast aux livreurs proches
 
   // Livraison
   deliveryAddress  String?   // adresse saisie par le client

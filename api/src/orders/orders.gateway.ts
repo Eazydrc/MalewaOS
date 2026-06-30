@@ -78,4 +78,21 @@ export class OrdersGateway implements OnGatewayConnection {
     this.server.to(`restaurant:${restaurantId}`).emit('order:status', order);
     this.server.to(`user:${userId}`).emit('order:status', order);
   }
+
+  // ── Matching livreur — broadcast à tous les livreurs proches ──────────────
+
+  broadcastDeliveryRequest(driverIds: string[], payload: unknown) {
+    for (const driverId of driverIds) {
+      this.server.to(`user:${driverId}`).emit('delivery:request', payload);
+    }
+  }
+
+  /** Informe les livreurs non retenus que la commande a été prise par un autre */
+  notifyDeliveryTaken(driverIds: string[], orderId: string, takenByDriverId: string) {
+    for (const driverId of driverIds) {
+      if (driverId !== takenByDriverId) {
+        this.server.to(`user:${driverId}`).emit('delivery:taken', { orderId });
+      }
+    }
+  }
 }

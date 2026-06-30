@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
-import { useAvailableDrivers } from "@/hooks/useDelivery";
+import { useAvailableDrivers, useFindDriver } from "@/hooks/useDelivery";
 import { useOrdersSocket } from "@/hooks/useOrdersSocket";
 import { OrderStepper, nextStatus, fulfillmentOf, type OrderStatus, type OrderFulfillment } from "@/components/orders/OrderStepper";
 import {
@@ -28,6 +28,7 @@ interface RestaurantOrder {
   isPaid: boolean;
   verificationCode?: string | null;
   refusalReason?: string | null;
+  searchingDriver?: boolean;
   user?: { firstName?: string; lastName?: string; phone?: string };
   table?: { number?: number; label?: string } | null;
   items: OrderItem[];
@@ -124,11 +125,14 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
   const isDelivery = fulfillment === "DELIVERY";
   const next = nextStatus(order.status, fulfillment);
   const canAssignDriver = isDelivery && !order.assignedDriverId && ["ACCEPTED", "PREPARING", "PACKAGING"].includes(order.status);
+  const canFindDriver = isDelivery && !order.assignedDriverId && order.status === "PACKAGING";
   const meta = FULFILLMENT_META[fulfillment];
   const FulfillmentIcon = meta.icon;
   const initials = `${order.user?.firstName?.[0] ?? ""}${order.user?.lastName?.[0] ?? ""}`.toUpperCase();
   const [showRefuseForm, setShowRefuseForm] = useState(false);
   const [refuseReason, setRefuseReason] = useState("");
+  const [driverMode, setDriverMode] = useState<"choice" | "manual" | null>(null);
+  const findDriver = useFindDriver();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
@@ -204,7 +208,38 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
             </p>
           )}
 
-          {canAssignDriver && (
+          {order.searchingDriver && (
+            <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-xl px-3 py-2.5 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+              Recherche d'un livreur à proximité…
+            </div>
+          )}
+
+          {canAssignDriver && !order.searchingDriver && driverMode === null && (
+            <div className="grid grid-cols-2 gap-2">
+              {canFindDriver && (
+                <button
+                  onClick={() => findDriver.mutate(order.id)}
+                  disabled={findDriver.isPending}
+                  className="py-2.5 rounded-xl text-xs font-bold bg-text text-bg disabled:opacity-50"
+                >
+                  🔍 Chercher un livreur
+                </button>
+              )}
+              <button
+                onClick={() => setDriverMode("manual")}
+                className={`py-2.5 rounded-xl text-xs font-bold bg-surface-2 text-text-2 ${!canFindDriver ? "col-span-2" : ""}`}
+              >
+                ✅ J'ai un livreur
+              </button>
+            </div>
+          )}
+
+          {findDriver.isError && (
+            <p className="text-xs text-red-500">{(findDriver.error as any)?.message ?? "Aucun livreur disponible à proximité"}</p>
+          )}
+
+          {canAssignDriver && driverMode === "manual" && (
             <select
               defaultValue=""
               disabled={assigning}

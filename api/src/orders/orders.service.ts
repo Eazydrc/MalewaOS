@@ -222,6 +222,117 @@ export class OrdersService {
     });
   }
 
+  // ── Matching livreur — broadcast aux livreurs proches (façon Yango) ───────
+
+  // Suivi en mémoire des livreurs notifiés par commande (assez pour la durée du broadcast)
+  private readonly broadcastedDrivers = new Map<string, string[]>();
+
+  private haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  /** Restaurant clique "Chercher un livreur" — diffuse aux livreurs disponibles dans 1km */
+  async findDriver(orderId: string, ownerId: string, role: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { restaurant: true, user: { select: { firstName: true, lastName: true } } },
+    });
+    if (!order) throw new NotFoundException('Commande introuvable');
+    if (role !== 'ADMIN' && order.restaurant.ownerId !== ownerId) throw new ForbiddenException();
+    if (!order.deliveryAddress) throw new BadRequestException('Cette commande n\'est pas une livraison');
+    if (order.assignedDriverId) throw new BadRequestException('Un livreur est déjà assigné');
+    if (!['READY', 'PACKAGING'].includes(order.status)) {
+      throw new BadRequestException('La commande doit être prête avant de chercher un livreur');
+    }
+    if (order.restaurant.lat == null || order.restaurant.lng == null) {
+      throw new BadRequestException('Localisation du restaurant non configurée');
+    }
+
+    const candidates = await this.prisma.user.findMany({
+      where: { role: 'LIVREUR', isActive: true, isAvailableForDelivery: true, currentLat: { not: null }, currentLng: { not: null } },
+      select: { id: true, firstName: true, lastName: true, currentLat: true, currentLng: true },
+    });
+
+    const nearby = candidates.filter(d =>
+      this.haversineKm(order.restaurant.lat!, order.restaurant.lng!, d.currentLat!, d.currentLng!) <= 1,
+    );
+
+    if (nearby.length === 0) {
+      throw new BadRequestException('Aucun livreur disponible à proximité pour le moment');
+    }
+
+    await this.prisma.order.update({ where: { id: orderId }, data: { searchingDriver: true } });
+
+    const driverIds = nearby.map(d => d.id);
+    this.broadcastedDrivers.set(orderId, driverIds);
+
+    this.gateway.broadcastDeliveryRequest(driverIds, {
+      orderId,
+      restaurantName: order.restaurant.name,
+      restaurantLat: order.restaurant.lat,
+      restaurantLng: order.restaurant.lng,
+      deliveryAddress: order.deliveryAddress,
+      deliveryLat: order.deliveryLat,
+      deliveryLng: order.deliveryLng,
+      totalCents: order.totalCents,
+      clientName: order.user.firstName,
+    });
+
+    return { driversNotified: nearby.length };
+  }
+
+  /** Le premier livreur qui accepte gagne — opération atomique */
+  async acceptDeliveryRequest(orderId: string, driverId: string) {
+    const driver = await this.prisma.user.findUnique({ where: { id: driverId } });
+    if (!driver || driver.role !== 'LIVREUR') throw new ForbiddenException();
+
+    const result = await this.prisma.order.updateMany({
+      where: { id: orderId, assignedDriverId: null, searchingDriver: true },
+      data:  { assignedDriverId: driverId, searchingDriver: false },
+    });
+    if (result.count === 0) {
+      throw new BadRequestException('Cette livraison a déjà été prise par un autre livreur');
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        restaurant: { select: { id: true, ownerId: true } },
+        assignedDriver: { select: { id: true, firstName: true, lastName: true, phone: true, avatarUrl: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Commande introuvable');
+
+    const notifiedDrivers = this.broadcastedDrivers.get(orderId) ?? [];
+    this.gateway.notifyDeliveryTaken(notifiedDrivers, orderId, driverId);
+    this.broadcastedDrivers.delete(orderId);
+
+    this.gateway.emitOrderStatus(order.restaurant.id, order.userId, order);
+    return order;
+  }
+
+  // ── Disponibilité livreur (toggle + position périodique) ─────────────────
+
+  async setDriverAvailability(driverId: string, isAvailable: boolean, lat?: number, lng?: number) {
+    return this.prisma.user.update({
+      where: { id: driverId },
+      data: {
+        isAvailableForDelivery: isAvailable,
+        ...(lat !== undefined ? { currentLat: lat } : {}),
+        ...(lng !== undefined ? { currentLng: lng } : {}),
+        availabilityUpdatedAt: new Date(),
+      },
+      select: { id: true, isAvailableForDelivery: true },
+    });
+  }
+
   // ── Livreur confirme récupération au restaurant ───────────────────────────
 
   async driverPickup(orderId: string, driverId: string) {

@@ -1,6 +1,6 @@
 import {
   IsString, IsInt, IsEnum, IsOptional, IsArray,
-  ValidateNested, Min, MaxLength, IsNumber,
+  ValidateNested, Min, MaxLength, IsNumber, IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -77,4 +77,17 @@ export class UpdateDriverLocationDto {
 
   @IsNumber()
   lng: number;
+}
+
+export class SetDriverAvailabilityDto {
+  @IsBoolean()
+  isAvailable: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  lat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  lng?: number;
 }

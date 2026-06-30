@@ -50,6 +50,7 @@ npx ts-node --transpile-only seed-tiers.ts   # 4 comptes test, un par tier
 | `croissance@test.cd` | CROISSANCE | Pizza & Grill Kinshasa | `/r/test-resto-croissance-001` |
 | `domination@test.cd` | DOMINATION | Le Grand Fleuve | `/r/test-resto-domination-001` |
 | `client@test.cd` | CLIENT | — (compte client) | Réservations sur les 4 restaurants ci-dessus (statuts variés : PENDING/CONFIRMED/COMPLETED/CANCELLED/NO_SHOW) |
+| `livreur@test.cd` | LIVREUR | — (compte livreur) | Créé manuellement pour tester le matching livraison (`/driver`) |
 
 ### Required services
 - PostgreSQL port 5432

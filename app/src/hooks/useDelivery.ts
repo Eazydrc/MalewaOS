@@ -124,3 +124,28 @@ export function useUpdateDriverLocation() {
       api.put(`/orders/${orderId}/driver/location`, { lat, lng }),
   });
 }
+
+// ── Matching livreur (façon Yango) ──────────────────────────────────────────────
+
+export function useFindDriver() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.post<{ driversNotified: number }>(`/orders/${orderId}/find-driver`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant-orders'] }),
+  });
+}
+
+export function useAcceptDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.post(`/orders/${orderId}/accept-delivery`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['driver-orders'] }),
+  });
+}
+
+export function useSetDriverAvailability() {
+  return useMutation({
+    mutationFn: ({ isAvailable, lat, lng }: { isAvailable: boolean; lat?: number; lng?: number }) =>
+      api.patch<{ id: string; isAvailableForDelivery: boolean }>('/orders/drivers/availability', { isAvailable, lat, lng }),
+  });
+}

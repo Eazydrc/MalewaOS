@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Put, Param, Body, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto, UpdateOrderStatusDto, AssignDriverDto, UpdateDriverLocationDto, RefuseOrderDto } from './dto/order.dto';
+import { CreateOrderDto, UpdateOrderStatusDto, AssignDriverDto, UpdateDriverLocationDto, RefuseOrderDto, SetDriverAvailabilityDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator';
 
@@ -31,6 +31,11 @@ export class OrdersController {
     return this.orders.findAvailableDrivers();
   }
 
+  @Patch('drivers/availability')
+  setDriverAvailability(@Body() dto: SetDriverAvailabilityDto, @CurrentUser() user: JwtUser) {
+    return this.orders.setDriverAvailability(user.id, dto.isAvailable, dto.lat, dto.lng);
+  }
+
   // ── Tracking ───────────────────────────────────────────────────────────────
 
   @Get(':id/tracking')
@@ -43,6 +48,16 @@ export class OrdersController {
   @Patch(':id/assign-driver')
   assignDriver(@Param('id') id: string, @Body() dto: AssignDriverDto, @CurrentUser() user: JwtUser) {
     return this.orders.assignDriver(id, dto, user.id, user.role);
+  }
+
+  @Post(':id/find-driver')
+  findDriver(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+    return this.orders.findDriver(id, user.id, user.role);
+  }
+
+  @Post(':id/accept-delivery')
+  acceptDeliveryRequest(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+    return this.orders.acceptDeliveryRequest(id, user.id);
   }
 
   // ── Livreur actions ────────────────────────────────────────────────────────
