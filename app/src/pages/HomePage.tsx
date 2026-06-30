@@ -77,32 +77,39 @@ function PromoCard({ offer, onClick }: { offer: any; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="carousel-card w-[200px] card p-3 text-left space-y-2 active:scale-[0.97] transition-transform no-tap"
+      className="carousel-card w-[200px] card overflow-hidden text-left active:scale-[0.97] transition-transform no-tap"
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-2xl">
-          {offer.type === 'FLASH' ? '⚡' : offer.type === 'POINTS' ? '⭐' : '🏷️'}
-        </span>
+      <div className="relative h-28 bg-surface-2 overflow-hidden">
+        {offer.restaurant?.imageUrl ? (
+          <img src={offer.restaurant.imageUrl} alt={offer.restaurant?.name ?? ''} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-3xl">
+            {offer.type === 'FLASH' ? '⚡' : offer.type === 'POINTS' ? '⭐' : '🏷️'}
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         {offer.discountPct && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shadow">
             -{offer.discountPct}%
           </span>
         )}
         {offer.pointsCost && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow">
             {offer.pointsCost} pts
           </span>
         )}
+        {offer.restaurant?.name && (
+          <p className="absolute bottom-1.5 left-2 right-2 text-[11px] font-bold text-white truncate">{offer.restaurant.name}</p>
+        )}
       </div>
-      <p className="text-xs font-bold text-text line-clamp-2">{offer.title ?? offer.description ?? 'Offre spéciale'}</p>
-      {offer.restaurant?.name && (
-        <p className="text-[10px] text-text-3 truncate">{offer.restaurant.name}</p>
-      )}
-      {offer.expiresAt && (
-        <p className="text-[10px] text-text-3">
-          Expire le {new Date(offer.expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-        </p>
-      )}
+      <div className="p-2.5 space-y-0.5">
+        <p className="text-xs font-bold text-text line-clamp-2">{offer.title ?? offer.description ?? 'Offre spéciale'}</p>
+        {offer.expiresAt && (
+          <p className="text-[10px] text-text-3">
+            Expire le {new Date(offer.expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+          </p>
+        )}
+      </div>
     </button>
   );
 }

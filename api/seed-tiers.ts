@@ -82,12 +82,12 @@ const TIERS = [
 
 type SubscriptionTier = 'MAMAN' | 'ESSENTIEL' | 'CROISSANCE' | 'DOMINATION';
 
-const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: string; description: string; price: number; promoPrice?: number; isHot?: boolean; isLastUnits?: boolean; imageUrl?: string }[] }[]> = {
+const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: string; description: string; price: number; promoPrice?: number; isHot?: boolean; isLastUnits?: boolean; isDailySpecial?: boolean; imageUrl?: string }[] }[]> = {
   MAMAN: [
     {
       sectionTitle: 'Plats du jour',
       items: [
-        { name: 'Poulet moambé',       description: 'Poulet mijoté dans la sauce moambé, servi avec du riz blanc.',          price: 500, imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400' },
+        { name: 'Poulet moambé',       description: 'Poulet mijoté dans la sauce moambé, servi avec du riz blanc.',          price: 500, isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400' },
         { name: 'Saka-saka',           description: 'Feuilles de manioc pilées avec poisson fumé et huile de palme.',          price: 300 },
         { name: 'Liboke de poisson',   description: 'Poisson frais mariné et cuit en papillote avec épices locales.',          price: 700 },
       ],
@@ -112,8 +112,8 @@ const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: str
     {
       sectionTitle: 'Plats principaux',
       items: [
-        { name: 'Poulet rôti',      description: 'Demi-poulet rôti avec frites maison et salade.',               price: 800,  promoPrice: 650, isHot: true,  imageUrl: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c8?w=400' },
-        { name: 'Thiébou yapp',     description: 'Riz au mouton à la sénégalaise avec légumes de saison.',       price: 700,  imageUrl: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400' },
+        { name: 'Poulet rôti',      description: 'Demi-poulet rôti avec frites maison et salade.',               price: 800,  promoPrice: 650, isHot: true, isDailySpecial: true,  imageUrl: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c8?w=400' },
+        { name: 'Thiébou yapp',     description: 'Riz au mouton à la sénégalaise avec légumes de saison.',       price: 700,  isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400' },
         { name: 'Steak grillé',     description: '200g de steak de bœuf avec légumes grillés et sauce béarnaise.', price: 1200, promoPrice: 950, isLastUnits: true },
       ],
     },
@@ -138,7 +138,7 @@ const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: str
     {
       sectionTitle: 'Pizzas',
       items: [
-        { name: 'Margherita',       description: 'Sauce tomate, mozzarella, basilic frais.',             price: 600, imageUrl: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400' },
+        { name: 'Margherita',       description: 'Sauce tomate, mozzarella, basilic frais.',             price: 600, isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400' },
         { name: 'Pizza Kinshasa',   description: 'Viande de bœuf, poivrons, oignons, sauce piquante.', price: 750, isHot: true, promoPrice: 600 },
         { name: 'Végétarienne',     description: 'Légumes grillés, mozzarella, olives, pesto.',         price: 650 },
         { name: 'Quatre saisons',   description: 'Jambon, champignons, artichauts, olives.',            price: 800, isLastUnits: true },
@@ -147,7 +147,7 @@ const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: str
     {
       sectionTitle: 'Grillades',
       items: [
-        { name: 'Côtes de bœuf',    description: '300g de côtes grillées, sauce barbecue maison, frites.', price: 1500, isHot: true, imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400' },
+        { name: 'Côtes de bœuf',    description: '300g de côtes grillées, sauce barbecue maison, frites.', price: 1500, isHot: true, isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400' },
         { name: 'Poulet grillé',    description: 'Demi-poulet mariné aux herbes, servi avec salade.',      price: 900, promoPrice: 750 },
         { name: 'Brochettes mixtes', description: 'Bœuf, poulet, légumes. Sauce au choix.',               price: 700 },
       ],
@@ -181,7 +181,7 @@ const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: str
     {
       sectionTitle: 'Poissons & Fruits de mer',
       items: [
-        { name: 'Homard grillé',      description: 'Demi-homard breton grillé au beurre persillé, pommes vapeur.', price: 4500, isHot: true, imageUrl: 'https://images.unsplash.com/photo-1559208645-5d8b5bf4e3b9?w=400' },
+        { name: 'Homard grillé',      description: 'Demi-homard breton grillé au beurre persillé, pommes vapeur.', price: 4500, isHot: true, isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1559208645-5d8b5bf4e3b9?w=400' },
         { name: 'Tilapia du Congo',   description: 'Filet de tilapia en croûte d\'herbes, légumes du marché.',       price: 1800, promoPrice: 1500 },
         { name: 'Crevettes sautées',  description: 'Gambas sautées à l\'ail et au piment, riz pilaf.',              price: 2200, isLastUnits: true },
       ],
@@ -189,7 +189,7 @@ const MENUS: Record<SubscriptionTier, { sectionTitle: string; items: { name: str
     {
       sectionTitle: 'Viandes',
       items: [
-        { name: 'Filet de bœuf Wagyu', description: '200g de Wagyu A5 japonais, sauce truffe, pommes Dauphine.',   price: 8000, isHot: true, imageUrl: 'https://images.unsplash.com/photo-1529694157872-4e0c0f3b238b?w=400' },
+        { name: 'Filet de bœuf Wagyu', description: '200g de Wagyu A5 japonais, sauce truffe, pommes Dauphine.',   price: 8000, isHot: true, isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1529694157872-4e0c0f3b238b?w=400' },
         { name: 'Agneau de lait',      description: 'Carré d\'agneau rôti, jus de romarin, gratin dauphinois.',     price: 3500 },
         { name: 'Canard à l\'orange',  description: 'Magret de canard, sauce bigarade, purée de céleri.',           price: 2800, promoPrice: 2400 },
       ],
@@ -347,6 +347,7 @@ async function main() {
             imageUrl:      item.imageUrl   ?? null,
             isHot:         item.isHot      ?? false,
             isLastUnits:   item.isLastUnits ?? false,
+            isDailySpecial: item.isDailySpecial ?? false,
             isAvailable:   true,
             order:         ii,
           },
