@@ -68,7 +68,7 @@ async function main() {
     {
       title: 'Burgers & Sandwichs',
       items: [
-        { name: 'Burger Express', description: 'Steak haché, cheddar, salade, sauce maison.', price: 600, isHot: true, imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400' },
+        { name: 'Burger Express', description: 'Steak haché, cheddar, salade, sauce maison.', price: 600, isHot: true, isDailySpecial: true, imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400' },
         { name: 'Sandwich poulet', description: 'Poulet pané, crudités, mayonnaise.', price: 500, imageUrl: 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=400' },
       ],
     },
