@@ -25,7 +25,7 @@ async function main() {
 
   const restaurant = await prisma.restaurant.upsert({
     where: { id: 'test-resto-livraison-001' },
-    update: { subscription: 'CROISSANCE', restaurantType: 'LIVRAISON', lat: -4.3276, lng: 15.3136 },
+    update: { subscription: 'DOMINATION', restaurantType: 'LIVRAISON', lat: -4.3276, lng: 15.3136 },
     create: {
       id:           'test-resto-livraison-001',
       ownerId:      user.id,
@@ -41,7 +41,7 @@ async function main() {
       reviewCount:  0,
       isOpen:       true,
       isActive:     true,
-      subscription: 'CROISSANCE',
+      subscription: 'DOMINATION',
       restaurantType: 'LIVRAISON',
       lat: -4.3276,
       lng: 15.3136,
