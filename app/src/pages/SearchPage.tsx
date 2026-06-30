@@ -235,26 +235,47 @@ export default function SearchPage() {
   return (
     <AppLayout showBack title="Explorer">
 
-      {/* ── Barre de recherche ── */}
-      <div className="relative">
-        <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-3" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input
-          type="search"
-          autoFocus
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Restaurant, cuisine, quartier..."
-          className="input-base py-3 pl-10 pr-10 w-full"
-        />
-        {query && (
-          <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-3 no-tap">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        )}
+      {/* ── Barre de recherche + filtres ── */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-3" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Restaurant, cuisine, quartier..."
+            className="input-base py-3 pl-10 pr-10 w-full"
+          />
+          {query && (
+            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-3 no-tap">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Bouton filtres — toujours visible, juste à côté de la recherche */}
+        <button
+          onClick={() => setShowFilters(true)}
+          className={`relative shrink-0 w-12 rounded-xl border flex items-center justify-center no-tap active:scale-95 transition-all ${
+            activeFilterCount > 0 ? 'bg-text text-bg border-text' : 'bg-surface-2 text-text-2 border-border'
+          }`}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/>
+            <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/>
+            <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
+          </svg>
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── Toggle Map / Liste ── */}
@@ -266,7 +287,7 @@ export default function SearchPage() {
               viewMode === 'list' ? 'bg-bg text-text shadow-card' : 'text-text-3'
             }`}
           >
-            📋 Liste
+            Liste
           </button>
           <button
             onClick={() => setViewMode('map')}
@@ -274,7 +295,7 @@ export default function SearchPage() {
               viewMode === 'map' ? 'bg-bg text-text shadow-card' : 'text-text-3'
             }`}
           >
-            🗺️ Carte
+            Carte
           </button>
         </div>
 
@@ -287,146 +308,142 @@ export default function SearchPage() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
           </svg>
-          {geoLoading ? 'Localisation…' : userLocation ? '📍 Localisé' : 'Me localiser'}
+          {geoLoading ? 'Localisation…' : userLocation ? 'Localisé' : 'Me localiser'}
         </button>
       </div>
 
       {geoError && <p className="text-xs text-red-500">{geoError}</p>}
 
-      {/* ── Filtres chips ── */}
-      <div
-        className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {/* Cuisines */}
-        {CUISINES.map(c => (
-          <button
-            key={c}
-            onClick={() => setCuisine(prev => prev === c ? undefined : c)}
-            className={`shrink-0 px-3 h-7 rounded-full text-[11px] font-semibold border transition-all no-tap active:scale-95 ${
-              cuisine === c
-                ? 'bg-text text-bg border-text'
-                : 'bg-surface-2 text-text-2 border-border'
-            }`}
-          >
-            {c}
-          </button>
-        ))}
-
-        {/* Types de service */}
-        {(Object.entries(TYPE_LABELS) as [RestaurantType, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setRestaurantType(prev => prev === key ? undefined : key)}
-            className={`shrink-0 px-3 h-7 rounded-full text-[11px] font-semibold border transition-all no-tap active:scale-95 ${
-              restaurantType === key
-                ? 'bg-text text-bg border-text'
-                : 'bg-surface-2 text-text-2 border-border'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-
-        {/* Ouvert maintenant */}
-        <button
-          onClick={() => setOpenNow(prev => !prev)}
-          className={`shrink-0 px-3 h-7 rounded-full text-[11px] font-semibold border transition-all no-tap active:scale-95 ${
-            openNow
-              ? 'bg-green-600 text-white border-green-600'
-              : 'bg-surface-2 text-text-2 border-border'
-          }`}
-        >
-          🟢 Ouvert maintenant
-        </button>
-
-        {/* Bouton filtres avancés */}
-        <button
-          onClick={() => setShowFilters(prev => !prev)}
-          className={`shrink-0 px-3 h-7 rounded-full text-[11px] font-semibold border transition-all no-tap active:scale-95 flex items-center gap-1 ${
-            activeFilterCount > 0
-              ? 'bg-accent text-white border-accent'
-              : 'bg-surface-2 text-text-2 border-border'
-          }`}
-        >
-          ⚙️ Filtres {activeFilterCount > 0 && <span className="bg-white/30 rounded-full w-4 h-4 text-[10px] flex items-center justify-center">{activeFilterCount}</span>}
-        </button>
-      </div>
-
-      {/* ── Panneau filtres avancés ── */}
+      {/* ── Modal filtres — tout au même endroit, accessible immédiatement ── */}
       {showFilters && (
-        <div className="card p-4 space-y-4 border border-border rounded-2xl">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-text">Filtres avancés</p>
-            <button
-              onClick={() => { setMinRating(undefined); setMaxPrice(undefined); setMaxDistKm(undefined); }}
-              className="text-xs text-accent font-semibold"
-            >
-              Réinitialiser
-            </button>
-          </div>
-
-          {/* Note minimum */}
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-text-2">Note minimum</p>
-            <div className="flex gap-2">
-              {[null, 3, 3.5, 4, 4.5].map((v) => (
-                <button
-                  key={v ?? 'all'}
-                  onClick={() => setMinRating(v ?? undefined)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
-                    minRating === (v ?? undefined)
-                      ? 'bg-amber-500 text-white border-amber-500'
-                      : 'bg-surface-2 text-text-2 border-border'
-                  }`}
-                >
-                  {v === null ? 'Tous' : `★ ${v}+`}
-                </button>
-              ))}
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
+          <div className="relative w-full md:max-w-md bg-bg rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 pb-3">
+              <p className="text-base font-bold text-text">Filtres</p>
+              <button onClick={() => setShowFilters(false)} className="text-text-3 hover:text-text p-1">✕</button>
             </div>
-          </div>
 
-          {/* Gamme de prix */}
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-text-2">Gamme de prix</p>
-            <div className="flex gap-2">
-              {[null, 1, 2, 3, 4].map((v) => (
+            <div className="px-5 pb-5 space-y-5">
+              {/* Cuisines — grille, pas de scroll */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-text-2">Cuisine</p>
+                <div className="flex flex-wrap gap-2">
+                  {CUISINES.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setCuisine(prev => prev === c ? undefined : c)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
+                        cuisine === c ? 'bg-text text-bg border-text' : 'bg-surface-2 text-text-2 border-border'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Type de service */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-text-2">Type de service</p>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(TYPE_LABELS) as [RestaurantType, string][]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setRestaurantType(prev => prev === key ? undefined : key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
+                        restaurantType === key ? 'bg-text text-bg border-text' : 'bg-surface-2 text-text-2 border-border'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ouvert maintenant */}
+              <button
+                onClick={() => setOpenNow(prev => !prev)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
+                  openNow ? 'bg-green-600 text-white border-green-600' : 'bg-surface-2 text-text-2 border-border'
+                }`}
+              >
+                Ouvert maintenant
+                <span>{openNow ? '✓' : ''}</span>
+              </button>
+
+              {/* Note minimum */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-text-2">Note minimum</p>
+                <div className="flex flex-wrap gap-2">
+                  {[null, 3, 3.5, 4, 4.5].map((v) => (
+                    <button
+                      key={v ?? 'all'}
+                      onClick={() => setMinRating(v ?? undefined)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
+                        minRating === (v ?? undefined) ? 'bg-amber-500 text-white border-amber-500' : 'bg-surface-2 text-text-2 border-border'
+                      }`}
+                    >
+                      {v === null ? 'Tous' : `★ ${v}+`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gamme de prix */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-text-2">Gamme de prix</p>
+                <div className="flex flex-wrap gap-2">
+                  {[null, 1, 2, 3, 4].map((v) => (
+                    <button
+                      key={v ?? 'all'}
+                      onClick={() => setMaxPrice(v ?? undefined)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
+                        maxPrice === (v ?? undefined) ? 'bg-text text-bg border-text' : 'bg-surface-2 text-text-2 border-border'
+                      }`}
+                    >
+                      {v === null ? 'Tous' : '$'.repeat(v)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Distance max (si géolocalisé) */}
+              {userLocation && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-text-2">Distance maximum</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[null, 1, 2, 5, 10].map((v) => (
+                      <button
+                        key={v ?? 'all'}
+                        onClick={() => setMaxDistKm(v ?? undefined)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
+                          maxDistKm === (v ?? undefined) ? 'bg-blue-500 text-white border-blue-500' : 'bg-surface-2 text-text-2 border-border'
+                        }`}
+                      >
+                        {v === null ? 'Tous' : `${v} km`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
                 <button
-                  key={v ?? 'all'}
-                  onClick={() => setMaxPrice(v ?? undefined)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
-                    maxPrice === (v ?? undefined)
-                      ? 'bg-text text-bg border-text'
-                      : 'bg-surface-2 text-text-2 border-border'
-                  }`}
+                  onClick={() => { setCuisine(undefined); setRestaurantType(undefined); setOpenNow(false); setMinRating(undefined); setMaxPrice(undefined); setMaxDistKm(undefined); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-surface-2 text-text-2"
                 >
-                  {v === null ? 'Tous' : '$'.repeat(v)}
+                  Réinitialiser
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Distance max (si géolocalisé) */}
-          {userLocation && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-text-2">Distance maximum</p>
-              <div className="flex gap-2">
-                {[null, 1, 2, 5, 10].map((v) => (
-                  <button
-                    key={v ?? 'all'}
-                    onClick={() => setMaxDistKm(v ?? undefined)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all no-tap ${
-                      maxDistKm === (v ?? undefined)
-                        ? 'bg-blue-500 text-white border-blue-500'
-                        : 'bg-surface-2 text-text-2 border-border'
-                    }`}
-                  >
-                    {v === null ? 'Tous' : `${v} km`}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-text text-bg"
+                >
+                  Voir les résultats
+                </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 

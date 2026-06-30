@@ -6,20 +6,6 @@ import { useHomeFeed } from "@/hooks/useHome";
 import { formatPrice } from "@/lib/constants";
 import { TIER_COLOR } from "@/lib/constants";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function StarRating({ rating }: { rating?: number }) {
-  if (!rating) return null;
-  return (
-    <span className="flex items-center gap-0.5 text-amber-500 text-xs font-semibold">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </svg>
-      {rating.toFixed(1)}
-    </span>
-  );
-}
-
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function CarouselSkeleton({ count = 3, width = 200 }: { count?: number; width?: number }) {
@@ -31,16 +17,6 @@ function CarouselSkeleton({ count = 3, width = 200 }: { count?: number; width?: 
           className="animate-pulse bg-surface-2 rounded-2xl shrink-0"
           style={{ width, height: width === 280 ? 220 : 180 }}
         />
-      ))}
-    </div>
-  );
-}
-
-function GridSkeleton({ count = 4 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="animate-pulse bg-surface-2 rounded-2xl h-48" />
       ))}
     </div>
   );
@@ -127,48 +103,6 @@ function PromoCard({ offer, onClick }: { offer: any; onClick: () => void }) {
           Expire le {new Date(offer.expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
         </p>
       )}
-    </button>
-  );
-}
-
-// ── Restaurant Grid Card ──────────────────────────────────────────────────────
-
-function RestaurantGridCard({ restaurant, onClick }: { restaurant: any; onClick: () => void }) {
-  const TYPE_LABEL: Record<string, string> = {
-    SUR_PLACE: 'Sur place',
-    LIVRAISON: 'Livraison',
-    LES_DEUX: 'Sur place & Livraison',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className="card overflow-hidden text-left active:scale-[0.97] transition-transform no-tap"
-    >
-      <div className="relative h-24 bg-surface-2 overflow-hidden">
-        {restaurant.imageUrl ? (
-          <img src={restaurant.imageUrl} alt={restaurant.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
-        )}
-        <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-          restaurant.isOpen
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-            : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
-        }`}>
-          {restaurant.isOpen ? 'Ouvert' : 'Fermé'}
-        </span>
-      </div>
-      <div className="p-2.5 space-y-1">
-        <p className="text-xs font-bold text-text leading-tight line-clamp-1">{restaurant.name}</p>
-        <p className="text-[10px] text-text-3 line-clamp-1">{restaurant.cuisine ?? restaurant.categories?.join(' · ')}</p>
-        <div className="flex items-center justify-between gap-1">
-          <StarRating rating={restaurant.rating} />
-          {restaurant.restaurantType && (
-            <span className="text-[9px] text-text-3 truncate">{TYPE_LABEL[restaurant.restaurantType]}</span>
-          )}
-        </div>
-      </div>
     </button>
   );
 }
@@ -354,39 +288,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── Restaurants populaires ── */}
-      {!error && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-text">Restaurants populaires 🔥</h2>
-            <button
-              onClick={() => navigate('/search')}
-              className="text-xs font-semibold text-accent no-tap"
-            >
-              Tout voir →
-            </button>
-          </div>
-
-          {isLoading ? (
-            <GridSkeleton count={4} />
-          ) : (feed?.popularRestaurants?.length ?? 0) === 0 ? (
-            <div className="card p-6 text-center">
-              <p className="text-xl mb-1">🍽️</p>
-              <p className="text-xs text-text-3">Aucun restaurant disponible pour l'instant</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {feed!.popularRestaurants.map((r: any) => (
-                <RestaurantGridCard
-                  key={r.id}
-                  restaurant={r}
-                  onClick={() => navigate(`/restaurant/${r.id}`)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
     </AppLayout>
   );
 }
