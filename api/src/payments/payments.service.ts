@@ -1,6 +1,8 @@
 import { Injectable, Logger, BadRequestException, ForbiddenException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { OrdersGateway } from '../orders/orders.gateway';
 import { randomBytes } from 'crypto';
 import { SubscriptionTier, TIER_PRICES, PaymentMethod, CinetPayWebhookDto } from './dto/payment.dto';
 
@@ -24,7 +26,12 @@ export class PaymentsService {
   private readonly notifyUrl: string;
   private readonly returnUrl: string;
 
-  constructor(private prisma: PrismaService, private config: ConfigService) {
+  constructor(
+    private prisma: PrismaService,
+    private config: ConfigService,
+    private notifications: NotificationsService,
+    private gateway: OrdersGateway,
+  ) {
     this.apiKey    = config.get('CINETPAY_API_KEY') ?? '';
     this.siteId    = config.get('CINETPAY_SITE_ID') ?? '';
 
@@ -123,12 +130,12 @@ export class PaymentsService {
         status: { in: PAYABLE_STATUSES as any },
         ...(orderId ? { id: orderId } : { createdAt: { gte: startOfDay } }),
       },
-      select: { id: true, totalCents: true },
+      select: { id: true, totalCents: true, deliveryFeeUsdCents: true },
     });
 
     return {
       orderIds:   orders.map(o => o.id),
-      totalCents: orders.reduce((sum, o) => sum + o.totalCents, 0),
+      totalCents: orders.reduce((sum, o) => sum + o.totalCents + o.deliveryFeeUsdCents, 0),
       count:      orders.length,
     };
   }
@@ -330,6 +337,25 @@ export class PaymentsService {
 
     await this.awardPoints(tx.userId, tx.amountUsd, 'Paiement de commande(s)');
 
+    // Commandes de livraison : maintenant payées, on les transmet enfin au restaurant
+    const deliveryOrders = await this.prisma.order.findMany({
+      where: { id: { in: tx.orderIds }, deliveryAddress: { not: null } },
+      include: {
+        items: true,
+        restaurant: { select: { id: true } },
+        table: { select: { number: true, label: true } },
+        user: { select: { firstName: true } },
+      },
+    });
+    for (const order of deliveryOrders) {
+      this.notifications.sendToRestaurantOwner(order.restaurantId, {
+        title: '📦 Nouvelle commande (livraison payée)',
+        body: `Commande de ${order.user.firstName} — 🛵 Livraison — ${order.deliveryAddress}`,
+        url: '/dashboard',
+      }).catch((err) => this.logger.warn(`Notification commande livraison payée échouée (${order.id}): ${err.message}`));
+      this.gateway.emitNewOrder(order.restaurant.id, order);
+    }
+
     this.logger.log(`Commandes payées (${tx.orderIds.length}) pour transaction ${transactionId}`);
   }
 
@@ -346,6 +372,9 @@ export class PaymentsService {
 
     const isOwner = order.restaurant.ownerId === actorId;
     if (!isOwner && role !== 'ADMIN') throw new ForbiddenException();
+    if (order.deliveryAddress) {
+      throw new BadRequestException('Les commandes en livraison doivent être payées en ligne avant transmission (séquestre)');
+    }
 
     if (order.isPaid) return order; // idempotent
 

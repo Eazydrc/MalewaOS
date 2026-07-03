@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Phone, MapPin, Clock, ArrowLeft, Package, CheckCircle, Truck } from 'lucide-react';
-import { useOrderTracking } from '@/hooks/useDelivery';
+import { Phone, MapPin, Clock, ArrowLeft, Package, CheckCircle, Truck, MessageCircle } from 'lucide-react';
+import { useOrderTracking, useConfirmDelivery, useReportProblem } from '@/hooks/useDelivery';
+import { useOsrmRoute, formatEta, formatDistance } from '@/hooks/useRoute';
 
 // ── Fix icônes Leaflet ────────────────────────────────────────────────────────
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -55,11 +56,25 @@ export default function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { data: tracking, isLoading } = useOrderTracking(orderId ?? '', !!orderId);
+  const confirmDelivery = useConfirmDelivery(orderId ?? '');
+  const reportProblem   = useReportProblem(orderId ?? '');
+  const [code, setCode]                 = useState('');
+  const [confirmError, setConfirmError] = useState('');
+  const [showReport, setShowReport]     = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSent, setReportSent]     = useState(false);
 
   const hasDriver   = !!tracking?.driver;
   const hasDriverGPS = tracking?.driverLat && tracking?.driverLng;
   const hasClientGPS = tracking?.deliveryLat && tracking?.deliveryLng;
   const hasRestoGPS  = tracking?.restaurant.lat && tracking?.restaurant.lng;
+
+  // Itinéraire réel (rues) du livreur vers le client — remplace la ligne droite
+  const { data: route } = useOsrmRoute(
+    hasDriverGPS ? { lat: tracking!.driverLat!, lng: tracking!.driverLng! } : null,
+    hasClientGPS ? { lat: tracking!.deliveryLat!, lng: tracking!.deliveryLng! } : null,
+    tracking?.status === 'OUT_FOR_DELIVERY' && !!hasDriverGPS && !!hasClientGPS,
+  );
 
   // Centre de la carte — priorité : livreur > client > resto > Kinshasa
   const mapCenter: [number, number] = hasDriverGPS
@@ -155,13 +170,20 @@ export default function OrderTrackingPage() {
               <Popup>🏠 Votre adresse</Popup>
             </Marker>
           )}
+
+          {/* Itinéraire réel (rues) du livreur jusqu'à l'adresse de livraison */}
+          {route && route.coords.length > 1 && (
+            <Polyline positions={route.coords} pathOptions={{ color: '#0ea5e9', weight: 4, opacity: 0.85 }} />
+          )}
         </MapContainer>
 
-        {/* Badge "En route" flottant */}
+        {/* Badge "En route" flottant — avec ETA réelle (trafic via OSRM) */}
         {tracking.status === 'OUT_FOR_DELIVERY' && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-lg flex items-center gap-2">
             <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            Livreur en route
+            {route
+              ? `Arrivée dans ${formatEta(route.durationSec)} · ${formatDistance(route.distanceM)}`
+              : 'Livreur en route'}
           </div>
         )}
         {isDelivered && (
@@ -172,7 +194,7 @@ export default function OrderTrackingPage() {
       </div>
 
       {/* Panneau infos — défile sous la carte */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 space-y-4">
 
         {/* Barre de progression */}
         <div className="card rounded-2xl p-4 bg-surface border border-border">
@@ -232,7 +254,23 @@ export default function OrderTrackingPage() {
                   <Phone className="w-4 h-4" />
                 </a>
               )}
+              {tracking.driver!.phone && (tracking.status === 'OUT_FOR_DELIVERY' || isDelivered) && (
+                <a
+                  href={`https://wa.me/${tracking.driver!.phone.replace(/[^0-9]/g, '')}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white active:scale-95"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </a>
+              )}
             </div>
+            {tracking.status === 'OUT_FOR_DELIVERY' && route && (
+              <div className="flex items-center gap-2 text-xs text-text-2 border-t border-border pt-2.5">
+                <Clock className="w-3.5 h-3.5 text-accent shrink-0" />
+                Arrivée estimée dans <span className="font-bold text-text">{formatEta(route.durationSec)}</span>
+                <span className="text-text-3">· {formatDistance(route.distanceM)} restants</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="card rounded-2xl p-4 bg-surface-2 border border-border text-center space-y-1">
@@ -252,14 +290,93 @@ export default function OrderTrackingPage() {
           </div>
         )}
 
-        {/* Commande livrée */}
-        {isDelivered && (
+        {/* Confirmation de réception — le livreur montre le code, le client le saisit */}
+        {(tracking.status === 'OUT_FOR_DELIVERY' || isDelivered) && !tracking.escrowReleased && (
+          <div className="rounded-2xl bg-surface border border-border p-4 space-y-3">
+            <p className="text-3xl text-center">🛵</p>
+            <p className="font-bold text-text text-center">Le livreur est là ?</p>
+            <p className="text-xs text-text-3 text-center">
+              Quand le livreur arrive, il vous montre un code à 6 chiffres sur son téléphone. Saisissez-le ici pour confirmer la réception et libérer le paiement.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="Code du livreur"
+              className="w-full text-center text-2xl font-black tracking-[0.3em] py-3 rounded-xl border border-border bg-bg text-text outline-none focus:border-accent/60"
+            />
+            {confirmError && (
+              <p className="text-xs text-red-600 dark:text-red-400 text-center">{confirmError}</p>
+            )}
+            <button
+              disabled={code.length !== 6 || confirmDelivery.isPending}
+              onClick={async () => {
+                setConfirmError('');
+                try {
+                  await confirmDelivery.mutateAsync(code);
+                } catch (e: any) {
+                  setConfirmError(e?.response?.data?.message ?? 'Code invalide — réessayez');
+                }
+              }}
+              className="w-full py-3 rounded-xl bg-accent text-white font-bold text-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+            >
+              {confirmDelivery.isPending ? '…' : '✅ Confirmer la réception'}
+            </button>
+
+            {/* Signaler un problème */}
+            {!showReport && !reportSent && (
+              <button
+                onClick={() => setShowReport(true)}
+                className="w-full py-2 rounded-xl border border-red-300 dark:border-red-800 text-red-500 text-xs font-semibold active:scale-[0.98]"
+              >
+                ⚠️ Signaler un problème
+              </button>
+            )}
+            {showReport && !reportSent && (
+              <div className="space-y-2 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3">
+                <p className="text-xs font-semibold text-red-600 dark:text-red-400">Décrivez le problème</p>
+                <textarea
+                  value={reportReason}
+                  onChange={e => setReportReason(e.target.value)}
+                  placeholder="Ex: Mauvaise commande, colis endommagé, livreur inconnu…"
+                  rows={3}
+                  className="w-full text-xs p-2 rounded-lg border border-red-200 dark:border-red-800 bg-bg text-text resize-none outline-none focus:border-red-400"
+                />
+                <p className="text-[10px] text-text-3">Minimum 10 caractères — le restaurant sera notifié</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowReport(false)} className="flex-1 py-2 rounded-lg bg-surface-2 text-text-3 text-xs font-semibold">Annuler</button>
+                  <button
+                    disabled={reportReason.trim().length < 10 || reportProblem.isPending}
+                    onClick={async () => {
+                      try {
+                        await reportProblem.mutateAsync(reportReason.trim());
+                        setReportSent(true);
+                        setShowReport(false);
+                      } catch {}
+                    }}
+                    className="flex-1 py-2 rounded-lg bg-red-500 text-white text-xs font-bold disabled:opacity-50"
+                  >
+                    {reportProblem.isPending ? '…' : 'Envoyer'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {reportSent && (
+              <p className="text-xs text-green-600 dark:text-green-400 text-center">✅ Signalement envoyé au restaurant</p>
+            )}
+          </div>
+        )}
+
+        {/* Commande livrée + paiement débloqué */}
+        {isDelivered && tracking.escrowReleased && (
           <div className="rounded-2xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-4 text-center space-y-2">
             <p className="text-3xl">🎉</p>
-            <p className="font-bold text-green-700 dark:text-green-400">Commande livrée !</p>
-            <p className="text-sm text-green-600 dark:text-green-500">Bon appétit !</p>
+            <p className="font-bold text-green-700 dark:text-green-400">Commande confirmée !</p>
+            <p className="text-sm text-green-600 dark:text-green-500">Bon appétit ! Le paiement a été libéré.</p>
             <button
-              onClick={() => navigate('/commander')}
+              onClick={() => navigate('/mes-commandes')}
               className="mt-2 text-sm text-accent underline"
             >
               Voir mes commandes

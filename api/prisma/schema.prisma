@@ -143,6 +143,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   payments           PaymentTransaction[]
   orderPayments      OrderPaymentTransaction[]
+  driverAffiliations DriverAffiliation[]
 
   @@index([email])
   @@index([googleId])
@@ -221,6 +222,9 @@ model Restaurant {
   dailySpecialDaysUsed Int      @default(0)
   dailySpecialResetAt  DateTime?
 
+  // Code QR d'affiliation livreur
+  affiliationCode String? @unique
+
   // Adresse structurée (optionnelle — complète l'adresse textuelle)
   addressId         String?
   structuredAddress Address? @relation(fields: [addressId], references: [id])
@@ -238,6 +242,7 @@ model Restaurant {
   staff        StaffMember[]
   payments     PaymentTransaction[]
   orderPayments OrderPaymentTransaction[]
+  driverAffiliations DriverAffiliation[]
 
   @@index([ownerId])
   @@index([city])
@@ -332,12 +337,26 @@ model Reservation {
   user         User             @relation(fields: [userId], references: [id])
   restaurant   Restaurant       @relation(fields: [restaurantId], references: [id])
   table        RestaurantTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  preOrderItems ReservationItem[]
 
   @@index([userId])
   @@index([restaurantId])
   @@index([tableId])
   @@index([date])
   @@index([status])
+}
+
+model ReservationItem {
+  id            String   @id @default(cuid())
+  reservationId String
+  menuItemId    String
+  name          String
+  priceUsdCents Int
+  quantity      Int
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
 }
 
 // ═══════════════════════════════════════════════════
@@ -392,15 +411,28 @@ model Order {
   refusalReason String?         // motif obligatoire si le restaurant refuse la commande
   searchingDriver Boolean       @default(false) // true pendant le broadcast aux livreurs proches
 
+  // Séquestre paiement livraison — argent bloqué jusqu'à confirmation client
+  deliveryFeeUsdCents Int       @default(0)     // frais de livraison, déduits du paiement restaurant
+  escrowReleased      Boolean   @default(false) // true une fois le client a confirmé réception (scan code)
+  escrowReleasedAt    DateTime?
+
   // Livraison
   deliveryAddress  String?   // adresse saisie par le client
   deliveryLat      Float?    // coordonnées GPS du client (optionnel)
   deliveryLng      Float?
-  verificationCode String?   @unique // code/QR unique généré à la création — vérifié au retrait et à la livraison
+  verificationCode String?   @unique // code restaurant → livreur scanne pour débloquer adresse client
+  deliveryCode     String?   @unique // code livreur → client scanne pour confirmer réception
+  problemReport    String?            // motif signalement problème client
+  problemReportedAt DateTime?         // date du signalement
 
   // Livreur assigné
   assignedDriverId  String?
   assignedDriver    User?     @relation("DriverOrders", fields: [assignedDriverId], references: [id])
+
+  // Réservation livreur marketplace (10 min — grisé mais libérable)
+  claimedByDriverId String?
+  claimedAt         DateTime?
+  driverEarningsCents Int     @default(0) // part livreur dans les frais de livraison
 
   // Position GPS livreur (polling temps réel)
   driverLat        Float?
@@ -517,6 +549,24 @@ model PaymentTransaction {
 
   @@index([restaurantId])
   @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════
+// AFFILIATION LIVREUR ↔ RESTAURANT
+// ═══════════════════════════════════════════════════
+
+model DriverAffiliation {
+  id           String     @id @default(cuid())
+  driverId     String
+  restaurantId String
+  createdAt    DateTime   @default(now())
+
+  driver       User       @relation(fields: [driverId],     references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, restaurantId])
+  @@index([restaurantId])
+  @@index([driverId])
 }
 
 model OrderPaymentTransaction {

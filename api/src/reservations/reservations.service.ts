@@ -20,6 +20,9 @@ const RESERVATION_SELECT = {
   table: {
     select: { id: true, number: true, label: true, seats: true },
   },
+  preOrderItems: {
+    select: { id: true, menuItemId: true, name: true, priceUsdCents: true, quantity: true },
+  },
 };
 
 @Injectable()
@@ -82,6 +85,26 @@ export class ReservationsService {
     const date = new Date(dto.date);
     if (date < new Date()) throw new BadRequestException('La date doit être dans le futur');
 
+    let preOrderItems: { menuItemId: string; name: string; priceUsdCents: number; quantity: number }[] = [];
+    if (dto.items?.length) {
+      const menuItemIds = dto.items.map((i) => i.menuItemId);
+      const menuItems = await this.prisma.menuItem.findMany({
+        where: { id: { in: menuItemIds }, section: { menu: { restaurantId: dto.restaurantId } } },
+        select: { id: true, name: true, priceUsdCents: true, promoPrice: true },
+      });
+      const byId = new Map(menuItems.map((m) => [m.id, m]));
+      preOrderItems = dto.items.map((i) => {
+        const m = byId.get(i.menuItemId);
+        if (!m) throw new BadRequestException(`Plat introuvable dans ce restaurant (${i.menuItemId})`);
+        return {
+          menuItemId: m.id,
+          name: m.name,
+          priceUsdCents: m.promoPrice ?? m.priceUsdCents,
+          quantity: i.quantity,
+        };
+      });
+    }
+
     const reservation = await this.prisma.reservation.create({
       data: {
         userId,
@@ -90,14 +113,16 @@ export class ReservationsService {
         partySize: dto.partySize,
         notes:     dto.notes,
         status:    'PENDING',
+        ...(preOrderItems.length && { preOrderItems: { create: preOrderItems } }),
       },
       select: RESERVATION_SELECT,
     });
 
     // Notifier le propriétaire du restaurant
+    const preOrderNote = preOrderItems.length ? ` · ${preOrderItems.length} plat(s) pré-commandé(s)` : '';
     this.notifications.sendToRestaurantOwner(dto.restaurantId, {
       title: '📅 Nouvelle réservation',
-      body: `${reservation.user.firstName} — ${reservation.partySize} pers. le ${new Date(reservation.date).toLocaleDateString('fr-FR')}`,
+      body: `${reservation.user.firstName} — ${reservation.partySize} pers. le ${new Date(reservation.date).toLocaleDateString('fr-FR')}${preOrderNote}`,
       url: '/dashboard',
     }).catch((err) => this.logger.warn(`Notification nouvelle réservation échouée (${reservation.id}): ${err.message}`));
 

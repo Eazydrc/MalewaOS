@@ -1,5 +1,16 @@
-import { IsString, IsDateString, IsInt, IsEnum, Min, Max, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsDateString, IsInt, IsEnum, Min, Max, IsOptional, MaxLength, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class ReservationPreOrderItemDto {
+  @IsString()
+  menuItemId: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @Type(() => Number)
+  quantity: number;
+}
 
 export class CreateReservationDto {
   @IsString()
@@ -18,6 +29,12 @@ export class CreateReservationDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReservationPreOrderItemDto)
+  items?: ReservationPreOrderItemDto[];
 }
 
 export class UpdateReservationDto {

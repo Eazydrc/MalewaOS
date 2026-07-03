@@ -279,8 +279,14 @@ export default function RestaurantPublicPage() {
     else setServiceType('TAKEAWAY');
   }, [restaurant?.restaurantType, canDineIn, publicTables.length]);
 
+  const [geoError, setGeoError] = useState('');
+
   const geolocateMe = useCallback(() => {
-    if (!navigator.geolocation) return;
+    setGeoError('');
+    if (!navigator.geolocation) {
+      setGeoError('Géolocalisation non supportée par ce navigateur');
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -289,7 +295,12 @@ export default function RestaurantPublicPage() {
         if (!deliveryAddress) setDeliveryAddress('Ma position actuelle');
         setLocating(false);
       },
-      () => setLocating(false),
+      err => {
+        setLocating(false);
+        if (err.code === 1) setGeoError('Permission refusée — autorisez la localisation dans votre navigateur');
+        else if (err.code === 2) setGeoError('Position introuvable — vérifiez votre GPS');
+        else setGeoError('Délai dépassé — réessayez');
+      },
       { enableHighAccuracy: true, timeout: 8000 },
     );
   }, [deliveryAddress]);
@@ -307,7 +318,7 @@ export default function RestaurantPublicPage() {
     }
     setOrdering(true); setOrderError('');
     try {
-      const order = await api.post<{ id: string }>('/orders', {
+      const order = await api.post<{ id: string; totalCents: number; deliveryFeeUsdCents: number }>('/orders', {
         restaurantId: id,
         items: cartItems.map(i => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
         notes: orderNotes || undefined,
@@ -316,19 +327,32 @@ export default function RestaurantPublicPage() {
         deliveryLat:     serviceType === 'DELIVERY'  ? deliveryLat : undefined,
         deliveryLng:     serviceType === 'DELIVERY'  ? deliveryLng : undefined,
       });
-      setOrderSuccess(true);
       setCart(new Map());
       setOrderNotes('');
-      // Naviguer vers le tracking après un court délai
+
+      // Livraison : paiement obligatoire avant transmission au restaurant (séquestre) —
+      // on redirige immédiatement vers le paiement, pas de bannière de succès intermédiaire.
       if (serviceType === 'DELIVERY' && order?.id) {
-        setTimeout(() => navigate(`/track/${order.id}`), 1500);
+        navigate('/payment', {
+          state: {
+            amountCents: order.totalCents + order.deliveryFeeUsdCents,
+            label: `Commande livraison chez ${restaurant?.name ?? 'le restaurant'}`,
+            kind: 'order',
+            restaurantId: id,
+            orderId: order.id,
+            returnTo: `/track/${order.id}`,
+          },
+        });
+        return;
       }
+
+      setOrderSuccess(true);
     } catch (e: any) {
       setOrderError(e.message ?? 'Erreur lors de la commande');
     } finally {
       setOrdering(false);
     }
-  }, [user, cartItems, id, orderNotes, navigate, serviceType, selectedTableId, deliveryAddress, deliveryLat, deliveryLng]);
+  }, [user, cartItems, id, orderNotes, navigate, serviceType, selectedTableId, deliveryAddress, deliveryLat, deliveryLng, restaurant?.name]);
 
   if (isLoading) {
     return (
@@ -436,6 +460,9 @@ export default function RestaurantPublicPage() {
 
           {/* ── Infos rapides ── */}
           <div className="card p-4 space-y-2 mt-4">
+            {restaurant.description && (
+              <p className="text-xs text-text-2 leading-relaxed">{restaurant.description}</p>
+            )}
             {/* Adresse structurée (commune/quartier/numero) ou fallback texte */}
             {(restaurant.address?.commune || restaurant.address?.quartier || restaurant.address?.full) ? (
               <div className="flex items-start gap-2 text-xs text-text-2">
@@ -513,8 +540,26 @@ export default function RestaurantPublicPage() {
                   <p className="text-xs text-text-3">Menu non disponible</p>
                 </div>
               ) : (
-                restaurant.menu.sections.map(section => (
-                  <div key={section.id} className="space-y-1">
+                <>
+                {restaurant.menu.sections.length > 1 && (
+                  <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-bg/95 backdrop-blur border-b border-border flex gap-2 flex-wrap">
+                    {restaurant.menu.sections.map(section => (
+                      <a
+                        key={section.id}
+                        href={`#menu-section-${section.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          document.getElementById(`menu-section-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        className="px-3 py-1.5 bg-surface-2 rounded-full text-xs font-bold text-text-2 hover:text-accent hover:bg-accent/10 transition-colors"
+                      >
+                        {section.title}
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {restaurant.menu.sections.map(section => (
+                  <div key={section.id} id={`menu-section-${section.id}`} className="space-y-1 scroll-mt-28">
                     <h3 className="text-base font-bold text-text px-1 pb-2">{section.title}</h3>
                     <div className="divide-y divide-border">
                       {section.items.filter(item => item.isAvailable).map(item => {
@@ -571,7 +616,8 @@ export default function RestaurantPublicPage() {
                       })}
                     </div>
                   </div>
-                ))
+                ))}
+                </>
               )}
             </div>
           )}
@@ -768,9 +814,9 @@ export default function RestaurantPublicPage() {
 
       {/* ── Drawer panier ── */}
       {showCart && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCart(false)} />
-          <div className="absolute bottom-0 left-0 right-0 bg-bg rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col">
+          <div className="relative w-full max-w-lg bg-bg rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-border" />
@@ -809,16 +855,16 @@ export default function RestaurantPublicPage() {
                     </div>
                   ))}
 
-                  {/* Type de service — sur place / à emporter / livraison */}
-                  {(canDineIn || canDeliver) && (
+                  {/* Type de service — masqué si restaurant livraison uniquement (choix auto) */}
+                  {(canDineIn || (canDeliver && restaurant?.restaurantType !== 'LIVRAISON')) && (
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-text-2">Comment souhaitez-vous commander ?</label>
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <div className={`grid gap-1.5 ${[canDineIn, true, canDeliver].filter(Boolean).length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                         {canDineIn && (
                           <button
                             type="button"
                             onClick={() => setServiceType('DINE_IN')}
-                            className={`py-2 rounded-xl text-[11px] font-bold transition-all ${serviceType === 'DINE_IN' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
+                            className={`py-2.5 rounded-xl text-xs font-bold transition-all ${serviceType === 'DINE_IN' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
                           >
                             🍽️ Sur place
                           </button>
@@ -826,7 +872,7 @@ export default function RestaurantPublicPage() {
                         <button
                           type="button"
                           onClick={() => setServiceType('TAKEAWAY')}
-                          className={`py-2 rounded-xl text-[11px] font-bold transition-all ${serviceType === 'TAKEAWAY' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
+                          className={`py-2.5 rounded-xl text-xs font-bold transition-all ${serviceType === 'TAKEAWAY' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
                         >
                           🛍️ À emporter
                         </button>
@@ -834,7 +880,7 @@ export default function RestaurantPublicPage() {
                           <button
                             type="button"
                             onClick={() => setServiceType('DELIVERY')}
-                            className={`py-2 rounded-xl text-[11px] font-bold transition-all ${serviceType === 'DELIVERY' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
+                            className={`py-2.5 rounded-xl text-xs font-bold transition-all ${serviceType === 'DELIVERY' ? 'bg-accent text-white' : 'bg-surface-2 text-text-2'}`}
                           >
                             🛵 Livraison
                           </button>
@@ -876,24 +922,34 @@ export default function RestaurantPublicPage() {
                       <label className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
                         📍 Adresse de livraison *
                       </label>
-                      <div className="flex gap-2">
-                        <input
-                          value={deliveryAddress}
-                          onChange={e => setDeliveryAddress(e.target.value)}
-                          placeholder="Ex: Av. de la Victoire 12, Gombe…"
-                          className="input-base flex-1 px-3 py-2 text-xs"
-                        />
-                        <button
-                          type="button"
-                          onClick={geolocateMe}
-                          disabled={locating}
-                          className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold shrink-0 disabled:opacity-60 active:scale-95"
-                          title="Ma position GPS"
-                        >
-                          {locating ? '...' : '📡'}
-                        </button>
-                      </div>
-                      {deliveryLat && deliveryLng && (
+                      <input
+                        value={deliveryAddress}
+                        onChange={e => setDeliveryAddress(e.target.value)}
+                        placeholder="Ex: Av. de la Victoire 12, Gombe…"
+                        className="input-base w-full px-3 py-2 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={geolocateMe}
+                        disabled={locating}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-400 dark:border-blue-600 text-blue-600 dark:text-blue-400 text-xs font-bold transition-all hover:bg-blue-50 dark:hover:bg-blue-950/40 active:scale-[0.98] disabled:opacity-50 no-tap"
+                      >
+                        {locating ? (
+                          <>
+                            <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
+                            Localisation en cours…
+                          </>
+                        ) : (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+                            Utiliser ma position GPS
+                          </>
+                        )}
+                      </button>
+                      {geoError && (
+                        <p className="text-[11px] text-red-500 font-medium flex items-center gap-1">⚠️ {geoError}</p>
+                      )}
+                      {deliveryLat && deliveryLng && !geoError && (
                         <p className="text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1">
                           ✅ GPS capturé — le livreur pourra vous trouver facilement
                         </p>

@@ -9,5 +9,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
   imports: [NotificationsModule, JwtModule.register({})],
   providers: [OrdersService, OrdersGateway],
   controllers: [OrdersController],
+  exports: [OrdersGateway],
 })
 export class OrdersModule {}

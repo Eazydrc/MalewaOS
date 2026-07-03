@@ -33,9 +33,9 @@ function OffersSection({ restaurantId }: { restaurantId: string }) {
   return (
     <div className="px-4 mt-3">
       <p className="text-[11px] font-bold text-text-3 uppercase tracking-widest mb-2">🎟️ Offres en cours</p>
-      <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+      <div className="grid grid-cols-1 gap-2">
         {active.map(o => (
-          <div key={o.id} className={`shrink-0 w-56 border rounded-2xl p-3 space-y-1 ${OFFER_TYPE_COLOR[o.type] ?? ""}`}>
+          <div key={o.id} className={`border rounded-2xl p-3 space-y-1 ${OFFER_TYPE_COLOR[o.type] ?? ""}`}>
             <p className="font-black text-sm leading-tight">{o.title}</p>
             <p className="text-xs opacity-80 line-clamp-2">{o.description}</p>
             <div className="flex items-center gap-2 flex-wrap pt-0.5 text-[10px] font-bold opacity-70">
@@ -145,17 +145,67 @@ export default function PublicMenuPage() {
 
       {/* ── Infos rapides ── */}
       {restaurant.categories?.length > 0 && (
-        <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-4 py-3 flex gap-2 flex-wrap">
           {restaurant.categories.map((cat: string) => (
-            <span key={cat} className="shrink-0 px-3 py-1 bg-surface-2 rounded-full text-xs font-medium text-text-2">
+            <span key={cat} className="px-3 py-1 bg-surface-2 rounded-full text-xs font-medium text-text-2">
               {cat}
             </span>
           ))}
         </div>
       )}
 
+      {/* ── Description + localisation ── */}
+      {(restaurant.description || restaurant.address || restaurant.structuredAddress || restaurant.phone) && (
+        <div className="px-4 pb-3 space-y-2">
+          {restaurant.description && (
+            <p className="text-sm text-text-2 leading-relaxed">{restaurant.description}</p>
+          )}
+          {(restaurant.structuredAddress?.commune || restaurant.structuredAddress?.quartier || restaurant.address) && (
+            <div className="flex items-start gap-2 text-xs text-text-2">
+              <span className="text-sm shrink-0">📍</span>
+              <span>
+                {restaurant.structuredAddress?.commune || restaurant.structuredAddress?.quartier
+                  ? [
+                      restaurant.structuredAddress?.numero,
+                      restaurant.structuredAddress?.quartier,
+                      restaurant.structuredAddress?.commune,
+                    ].filter(Boolean).join(', ')
+                  : restaurant.address}
+                {restaurant.structuredAddress?.reference && (
+                  <span className="block text-text-3 italic mt-0.5">{restaurant.structuredAddress.reference}</span>
+                )}
+              </span>
+            </div>
+          )}
+          {restaurant.phone && (
+            <a href={`tel:${restaurant.phone}`} className="flex items-center gap-2 text-xs text-accent font-semibold">
+              <span className="text-sm">📞</span>{restaurant.phone}
+            </a>
+          )}
+        </div>
+      )}
+
       {/* ── Offres ESSENTIEL+ ── */}
       {hasOffers && restaurantId && <OffersSection restaurantId={restaurantId} />}
+
+      {/* ── Navigation rapide par section ── */}
+      {menu?.sections?.length > 1 && (
+        <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur border-b border-border px-4 py-2 flex gap-2 flex-wrap">
+          {menu.sections.map((section: any) => (
+            <a
+              key={section.id}
+              href={`#section-${section.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(`section-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="px-3 py-1.5 bg-surface-2 rounded-full text-xs font-bold text-text-2 hover:text-accent hover:bg-accent/10 transition-colors"
+            >
+              {section.title}
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* ── Menu ── */}
       <div className="px-4 pb-24 space-y-6 mt-2">
@@ -167,7 +217,7 @@ export default function PublicMenuPage() {
           </div>
         ) : (
           menu.sections.map((section: any) => (
-            <div key={section.id}>
+            <div key={section.id} id={`section-${section.id}`} className="scroll-mt-16">
               {/* Titre section */}
               <div className="flex items-center gap-3 mb-3">
                 <h2 className="text-base font-black text-text">{section.title}</h2>

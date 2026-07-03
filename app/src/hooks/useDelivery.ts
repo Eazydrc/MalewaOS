@@ -21,6 +21,10 @@ export interface TrackingData {
   driverLng?: number;
   driverLastSeen?: string;
   driver?: Driver;
+  verificationCode?: string;
+  deliveryCode?: string;
+  escrowReleased?: boolean;
+  isPaid?: boolean;
   restaurant: {
     name: string;
     lat?: number;
@@ -37,6 +41,10 @@ export interface DriverOrder {
   deliveryAddress?: string;
   deliveryLat?: number;
   deliveryLng?: number;
+  verificationCode?: string;
+  deliveryCode?: string;
+  escrowReleased?: boolean;
+  driverEarningsCents?: number;
   createdAt: string;
   restaurant: {
     id: string;
@@ -57,6 +65,49 @@ export interface DriverOrder {
     quantity: number;
     priceUsdCents: number;
   }[];
+}
+
+export interface DeliveryRequest {
+  id: string;
+  status: string;
+  deliveryAddress: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
+  deliveryFeeUsdCents: number;
+  driverEarningsCents: number;
+  createdAt: string;
+  isClaimed: boolean;
+  isClaimedByMe: boolean;
+  restaurant: {
+    id: string;
+    name: string;
+    imageUrl?: string;
+    lat?: number;
+    lng?: number;
+    address: string;
+  };
+}
+
+export interface DriverStats {
+  today: {
+    count: number;
+    earningsCents: number;
+    deliveries: { id: string; driverEarningsCents: number; restaurant: { name: string }; escrowReleasedAt: string }[];
+  };
+  week: {
+    count: number;
+    earningsCents: number;
+  };
+  month: {
+    count: number;
+    earningsCents: number;
+  };
+}
+
+export interface DriverAffiliation {
+  id: string;
+  restaurantId: string;
+  restaurant: { id: string; name: string; imageUrl?: string; address: string };
 }
 
 // ── Client tracking ───────────────────────────────────────────────────────────
@@ -143,9 +194,108 @@ export function useAcceptDelivery() {
   });
 }
 
+export function useConfirmDelivery(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post(`/orders/${orderId}/confirm-delivery`, { code }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['order-tracking', orderId] });
+      qc.invalidateQueries({ queryKey: ['my-orders'] });
+    },
+  });
+}
+
+export function useDriverScanPickup(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post<{
+      deliveryAddress: string; deliveryLat?: number; deliveryLng?: number; deliveryCode: string;
+    }>(`/orders/${orderId}/driver/scan-pickup`, { code }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['driver-orders'] }),
+  });
+}
+
+export function useReportProblem(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => api.post(`/orders/${orderId}/report-problem`, { reason }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['order-tracking', orderId] }),
+  });
+}
+
 export function useSetDriverAvailability() {
   return useMutation({
     mutationFn: ({ isAvailable, lat, lng }: { isAvailable: boolean; lat?: number; lng?: number }) =>
       api.patch<{ id: string; isAvailableForDelivery: boolean }>('/orders/drivers/availability', { isAvailable, lat, lng }),
+  });
+}
+
+export function useDeliveryRequests(enabled = true) {
+  return useQuery<DeliveryRequest[]>({
+    queryKey: ['delivery-requests'],
+    queryFn: () => api.get('/orders/driver/requests'),
+    enabled,
+    refetchInterval: 10000,
+    staleTime: 0,
+  });
+}
+
+export function useClaimDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => api.post(`/orders/${orderId}/claim`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['delivery-requests'] }),
+  });
+}
+
+export function useDriverStats(enabled = true) {
+  return useQuery<DriverStats>({
+    queryKey: ['driver-stats'],
+    queryFn: () => api.get('/orders/driver/stats'),
+    enabled,
+    refetchInterval: 30000,
+    staleTime: 60000,
+  });
+}
+
+export function useDriverAffiliations() {
+  return useQuery<DriverAffiliation[]>({
+    queryKey: ['driver-affiliations'],
+    queryFn: () => api.get('/orders/driver/affiliations'),
+    staleTime: 60000,
+  });
+}
+
+export function useJoinAffiliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post<{ restaurantName: string }>('/orders/driver/affiliations/join', { code }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['driver-affiliations'] }),
+  });
+}
+
+export function useLeaveAffiliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (restaurantId: string) => api.delete(`/orders/driver/affiliations/${restaurantId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['driver-affiliations'] }),
+  });
+}
+
+export function useAffiliationCode(restaurantId: string, enabled = true) {
+  return useQuery<{ code: string }>({
+    queryKey: ['affiliation-code', restaurantId],
+    queryFn: () => api.get(`/orders/restaurant/${restaurantId}/affiliation-code`),
+    enabled: !!restaurantId && enabled,
+    staleTime: Infinity,
+  });
+}
+
+export function useAffiliatedDrivers(restaurantId: string, enabled = true) {
+  return useQuery<{ id: string; driver: { id: string; firstName: string; lastName: string; phone?: string; isAvailableForDelivery: boolean } }[]>({
+    queryKey: ['affiliated-drivers', restaurantId],
+    queryFn: () => api.get(`/orders/restaurant/${restaurantId}/affiliated-drivers`),
+    enabled: !!restaurantId && enabled,
+    staleTime: 30000,
   });
 }

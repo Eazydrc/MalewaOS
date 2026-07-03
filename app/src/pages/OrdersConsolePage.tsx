@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
-import { useAvailableDrivers, useFindDriver } from "@/hooks/useDelivery";
+import { useAvailableDrivers, useFindDriver, useAffiliationCode, useAffiliatedDrivers } from "@/hooks/useDelivery";
 import { useOrdersSocket } from "@/hooks/useOrdersSocket";
 import { OrderStepper, nextStatus, fulfillmentOf, type OrderStatus, type OrderFulfillment } from "@/components/orders/OrderStepper";
 import {
@@ -25,7 +26,9 @@ interface RestaurantOrder {
   deliveryAddress?: string | null;
   notes?: string | null;
   totalCents: number;
+  deliveryFeeUsdCents?: number;
   isPaid: boolean;
+  escrowReleased?: boolean;
   verificationCode?: string | null;
   refusalReason?: string | null;
   searchingDriver?: boolean;
@@ -136,10 +139,16 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full md:max-w-md bg-bg rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      {/* Overlay — fond sombre complet */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      {/* Panneau — glassmorphisme */}
+      <div className="relative w-full md:max-w-md bg-bg/95 backdrop-blur-xl rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto border border-border/50">
+        {/* Poignée scroll mobile */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-border" />
+        </div>
         {/* En-tête */}
-        <div className="flex items-center justify-between gap-4 p-5">
+        <div className="flex items-center justify-between gap-4 px-5 pt-3 pb-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-full bg-accent/10 text-accent flex items-center justify-center text-sm font-bold shrink-0">
               {initials || "?"}
@@ -154,7 +163,7 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
           <button onClick={onClose} className="text-text-3 hover:text-text p-1 shrink-0">✕</button>
         </div>
 
-        <div className="px-5 pb-5 space-y-4">
+        <div className="px-5 pb-28 space-y-4">
           <div className="flex items-center justify-between">
             <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${meta.color}`}>
               <FulfillmentIcon size={13} />
@@ -170,6 +179,19 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
             </div>
           </div>
 
+          {/* Séquestre livraison — fonds bloqués jusqu'à confirmation client */}
+          {fulfillment === "DELIVERY" && order.isPaid && (
+            <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl ${
+              order.escrowReleased
+                ? "bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400"
+                : "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400"
+            }`}>
+              {order.escrowReleased
+                ? "💰 Fonds disponibles — réception confirmée par le client"
+                : "🔒 Fonds bloqués — en attente de confirmation de réception par le client"}
+            </div>
+          )}
+
           <div className="space-y-1.5 border-t border-border pt-3">
             {order.items.map((item) => (
               <div key={item.id} className="flex items-center gap-2 text-sm text-text-2">
@@ -182,9 +204,17 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
           {order.notes && <p className="text-xs italic text-text-3 bg-surface-2 rounded-xl px-3 py-2">"{order.notes}"</p>}
 
           {order.verificationCode && order.status !== "CANCELLED" && (
-            <div className="flex items-center justify-between bg-surface-2 rounded-xl px-3 py-2.5">
-              <span className="text-xs font-semibold text-text-2">Code de vérification</span>
-              <span className="text-base font-black tracking-widest text-text">{order.verificationCode}</span>
+            <div className="rounded-2xl bg-surface-2 border border-border p-4 space-y-3 text-center">
+              <p className="text-xs font-bold text-text-2 uppercase tracking-wider">Code livreur</p>
+              <div className="flex justify-center">
+                <div className="bg-white p-3 rounded-xl inline-block">
+                  <QRCodeSVG value={order.verificationCode} size={140} level="M" />
+                </div>
+              </div>
+              <div>
+                <p className="text-2xl font-black tracking-[0.25em] text-text">{order.verificationCode}</p>
+                <p className="text-[10px] text-text-3 mt-1">Le livreur scanne ce QR ou entre ce code pour débloquer l'adresse client</p>
+              </div>
             </div>
           )}
 
@@ -318,18 +348,92 @@ function OrderDetailModal({ order, onClose, onAdvance, advancing, drivers, onAss
   );
 }
 
+// ── Modal livreurs affiliés (restaurant) ──────────────────────────────────────
+function AffiliatedDriversModal({ restaurantId, onClose, onSelectDriver }: {
+  restaurantId: string;
+  onClose: () => void;
+  onSelectDriver: (driverId: string, name: string) => void;
+}) {
+  const { data: codeData } = useAffiliationCode(restaurantId);
+  const { data: drivers = [] } = useAffiliatedDrivers(restaurantId);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      <div className="relative w-full md:max-w-md bg-bg/95 backdrop-blur-xl rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto border border-border/50">
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-border" />
+        </div>
+        <div className="flex items-center justify-between gap-4 px-5 pt-3 pb-4">
+          <div>
+            <h2 className="font-bold text-text">Livreurs affiliés</h2>
+            <p className="text-xs text-text-3">Partagez ce code pour recruter vos livreurs</p>
+          </div>
+          <button onClick={onClose} className="text-text-3 p-1">✕</button>
+        </div>
+
+        <div className="px-5 pb-28 space-y-4">
+          {/* QR code affiliation */}
+          {codeData?.code && (
+            <div className="rounded-2xl bg-surface-2 border border-border p-4 text-center space-y-3">
+              <p className="text-xs font-bold text-text-3 uppercase tracking-wider">Code d'affiliation restaurant</p>
+              <div className="flex justify-center">
+                <div className="bg-white p-3 rounded-xl">
+                  <QRCodeSVG value={codeData.code} size={140} level="M" />
+                </div>
+              </div>
+              <p className="text-2xl font-black tracking-[0.25em] text-text">{codeData.code}</p>
+              <p className="text-[10px] text-text-3">Le livreur entre ce code dans son app pour s'affilier à votre restaurant</p>
+            </div>
+          )}
+
+          {/* Liste livreurs affiliés */}
+          {drivers.length === 0 ? (
+            <div className="text-center py-6 text-text-3 text-sm">Aucun livreur affilié pour l'instant</div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-text-3 uppercase tracking-wider">{drivers.length} livreur{drivers.length > 1 ? 's' : ''}</p>
+              {drivers.map(a => (
+                <div key={a.id} className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-base shrink-0">👤</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text">{a.driver.firstName} {a.driver.lastName}</p>
+                    {a.driver.phone && <p className="text-xs text-text-3">{a.driver.phone}</p>}
+                    <span className={`text-[10px] font-bold ${a.driver.isAvailableForDelivery ? 'text-green-500' : 'text-text-3'}`}>
+                      {a.driver.isAvailableForDelivery ? '● Disponible' : '● Hors ligne'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { onSelectDriver(a.driver.id, `${a.driver.firstName} ${a.driver.lastName}`); onClose(); }}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-accent text-white font-semibold shrink-0"
+                  >
+                    Assigner
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrdersConsolePage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const qc = useQueryClient();
-  const [subTab, setSubTab] = useState<SubTab>("dinein");
+  const [subTab, setSubTab] = useState<SubTab | string>("received");
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  const [showAffiliatedDrivers, setShowAffiliatedDrivers] = useState(false);
 
   const { data: restaurant } = useQuery({
     queryKey: ["my-restaurant"],
-    queryFn: () => api.get<{ id: string; name: string }>("/restaurants/mine"),
+    queryFn: () => api.get<{ id: string; name: string; restaurantType?: string }>("/restaurants/mine"),
     enabled: user?.role === "RESTAURANT" || user?.role === "ADMIN",
   });
+
+  const isDeliveryOnly = restaurant?.restaurantType === "LIVRAISON";
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["restaurant-orders", restaurant?.id],
@@ -382,73 +486,80 @@ export default function OrdersConsolePage() {
     );
   }
 
-  const active = orders.filter((o) => !["DELIVERED", "CANCELLED"].includes(o.status));
-  const dineIn   = active.filter((o) => fulfillmentOf(o) === "DINE_IN");
-  const takeaway = active.filter((o) => fulfillmentOf(o) === "TAKEAWAY");
-  const delivery = active.filter((o) => fulfillmentOf(o) === "DELIVERY");
+  // ── 3 onglets : Reçues / En cours / Historique ──────────────────────────
+  const received  = orders.filter((o) => o.status === "PENDING");
+  const inProgress = orders.filter((o) => ["ACCEPTED", "PREPARING", "PACKAGING", "OUT_FOR_DELIVERY", "READY"].includes(o.status));
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const history = orders
-    .filter((o) => ["DELIVERED", "CANCELLED"].includes(o.status))
+    .filter((o) => ["DELIVERED", "CANCELLED"].includes(o.status) && new Date(o.createdAt) >= today)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const groups: Record<SubTab, RestaurantOrder[]> = { dinein: dineIn, takeaway, delivery, history };
-  const shown = groups[subTab];
+  type ConsoleTab = "received" | "inprogress" | "history";
+  const shownMap: Record<ConsoleTab, RestaurantOrder[]> = { received, inprogress: inProgress, history };
+  const shown = shownMap[subTab as ConsoleTab] ?? inProgress;
   const openOrder = orders.find((o) => o.id === openOrderId) ?? null;
 
-  const EMPTY_LABEL: Record<SubTab, string> = {
-    dinein: "Aucune commande sur place en cours",
-    takeaway: "Aucune commande à emporter en cours",
-    delivery: "Aucune commande en livraison en cours",
-    history: "Aucune commande traitée pour l'instant",
+  const EMPTY: Record<ConsoleTab, string> = {
+    received:   "Aucune nouvelle commande",
+    inprogress: "Aucune commande en cours de traitement",
+    history:    "Aucune commande traitée aujourd'hui",
   };
 
   return (
     <AppLayout title={`Commandes — ${restaurant?.name ?? ""}`}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <button onClick={() => navigate("/dashboard")} className="text-xs text-text-3 hover:text-text">‹ Retour au dashboard</button>
-          <span className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${connected ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-surface-2 text-text-3"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500" : "bg-text-3"}`} />
-            {connected ? "Temps réel actif" : "Connexion…"}
-          </span>
+          <button onClick={() => navigate("/dashboard")} className="text-xs text-text-3 hover:text-text">‹ Retour</button>
+          <div className="flex items-center gap-2">
+            {restaurant?.id && (
+              <button
+                onClick={() => setShowAffiliatedDrivers(true)}
+                className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-accent/10 text-accent border border-accent/20"
+              >
+                🔗 Livreurs affiliés
+              </button>
+            )}
+            <span className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${connected ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-surface-2 text-text-3"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-text-3"}`} />
+              {connected ? "Temps réel" : "Connexion…"}
+            </span>
+          </div>
         </div>
 
-        {/* Onglets — segmented control, comme dans le dashboard */}
+        {/* ── 3 onglets fixes ── */}
         <div className="flex gap-1 bg-surface-2 rounded-xl p-1">
-          {(Object.keys(TAB_META) as Exclude<SubTab, "history">[]).map((key) => {
-            const meta = TAB_META[key];
-            const count = groups[key].length;
-            return (
-              <button
-                key={key}
-                onClick={() => setSubTab(key)}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${subTab === key ? "bg-bg text-text shadow-card" : "text-text-3 hover:text-text-2"}`}
-              >
-                {meta.label}
-                {count > 0 && <span className="px-1.5 py-0.5 rounded-full bg-accent/15 text-accent text-[10px] font-bold">{count}</span>}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setSubTab("history")}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${subTab === "history" ? "bg-bg text-text shadow-card" : "text-text-3 hover:text-text-2"}`}
-          >
-            Traitées
-            {history.length > 0 && <span className="px-1.5 py-0.5 rounded-full bg-accent/15 text-accent text-[10px] font-bold">{history.length}</span>}
-          </button>
+          {([
+            { key: "received",   label: "Reçues",   count: received.length,    dot: received.length > 0 },
+            { key: "inprogress", label: "En cours",  count: inProgress.length,  dot: false },
+            { key: "history",    label: "Historique", count: history.length,    dot: false },
+          ] as { key: ConsoleTab; label: string; count: number; dot: boolean }[]).map(({ key, label, count, dot }) => (
+            <button
+              key={key}
+              onClick={() => setSubTab(key)}
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${subTab === key ? "bg-bg text-text shadow-card" : "text-text-3"}`}
+            >
+              {label}
+              {count > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${dot ? "bg-red-500 text-white" : "bg-surface text-text-3"}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-surface-2 animate-pulse" />)}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-24 rounded-xl bg-surface-2 animate-pulse" />)}
           </div>
         ) : shown.length === 0 ? (
-          <div className="card p-8 text-center space-y-2">
+          <div className="card p-10 text-center space-y-2">
             <CheckCircleIcon size={28} className="mx-auto text-text-3" />
-            <p className="text-sm text-text-3">{EMPTY_LABEL[subTab]}</p>
+            <p className="text-sm text-text-3">{EMPTY[subTab as ConsoleTab]}</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {(subTab === "history" ? shown.slice(0, 60) : shown).map((order) => (
+          <div className={`grid gap-3 ${subTab === "inprogress" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+            {shown.map((order) => (
               <OrderSummaryRow key={order.id} order={order} onOpen={() => setOpenOrderId(order.id)} />
             ))}
           </div>

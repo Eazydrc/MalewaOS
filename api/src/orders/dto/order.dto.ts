@@ -79,6 +79,12 @@ export class UpdateDriverLocationDto {
   lng: number;
 }
 
+export class ConfirmDeliveryDto {
+  @IsString()
+  @MaxLength(6)
+  code: string;
+}
+
 export class SetDriverAvailabilityDto {
   @IsBoolean()
   isAvailable: boolean;

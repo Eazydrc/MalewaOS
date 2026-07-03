@@ -13,6 +13,24 @@ import { CreateOrderDto, UpdateOrderStatusDto, AssignDriverDto, UpdateDriverLoca
 // Abonnements autorisant la commande en ligne (ESSENTIEL+ pour tous les types de restaurant)
 const ORDER_TIERS = ['ESSENTIEL', 'CROISSANCE', 'DOMINATION'];
 
+// Frais de livraison dynamiques par distance (Haversine)
+// Tarif Kinshasa : base $1.00 + $0.40/km — livreur reçoit 80%
+const DELIVERY_FEE_BASE_CENTS   = 100; // $1.00 minimum
+const DELIVERY_FEE_PER_KM_CENTS = 40;  // $0.40/km
+const DRIVER_FEE_RATIO          = 0.8; // livreur reçoit 80% des frais
+
+function calcDeliveryFee(distanceKm: number): { clientFeeCents: number; driverEarningsCents: number } {
+  const clientFeeCents     = Math.max(DELIVERY_FEE_BASE_CENTS, Math.round(DELIVERY_FEE_PER_KM_CENTS * distanceKm + DELIVERY_FEE_BASE_CENTS));
+  const driverEarningsCents = Math.round(clientFeeCents * DRIVER_FEE_RATIO);
+  return { clientFeeCents, driverEarningsCents };
+}
+
+// Le client peut consulter la commande via /orders/mine ; ce flag contrôle uniquement
+// sa visibilité côté restaurant (transmission interdite tant qu'elle n'est pas payée)
+function isHiddenFromRestaurant(order: { deliveryAddress: string | null; isPaid: boolean }) {
+  return !!order.deliveryAddress && !order.isPaid;
+}
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -92,6 +110,24 @@ export class OrdersService {
       throw new BadRequestException('Le montant total de la commande est invalide');
     }
 
+    const isDelivery = !!dto.deliveryAddress;
+
+    // Calcul frais livraison dynamiques selon distance restaurant → client
+    let deliveryFeeUsdCents  = 0;
+    let driverEarningsCents  = 0;
+    if (isDelivery && restaurant) {
+      const resto = await this.prisma.restaurant.findUnique({ where: { id: dto.restaurantId }, select: { lat: true, lng: true } });
+      if (resto?.lat && resto?.lng && dto.deliveryLat && dto.deliveryLng) {
+        const distKm = this.haversineKm(resto.lat, resto.lng, dto.deliveryLat, dto.deliveryLng);
+        const fee = calcDeliveryFee(distKm);
+        deliveryFeeUsdCents = fee.clientFeeCents;
+        driverEarningsCents  = fee.driverEarningsCents;
+      } else {
+        deliveryFeeUsdCents = DELIVERY_FEE_BASE_CENTS;
+        driverEarningsCents  = Math.round(DELIVERY_FEE_BASE_CENTS * DRIVER_FEE_RATIO);
+      }
+    }
+
     const order = await this.prisma.order.create({
       data: {
         userId,
@@ -100,6 +136,8 @@ export class OrdersService {
         deliveryAddress: dto.deliveryAddress ?? null,
         deliveryLat:     dto.deliveryLat     ?? null,
         deliveryLng:     dto.deliveryLng     ?? null,
+        deliveryFeeUsdCents,
+        driverEarningsCents,
         totalCents,
         notes: dto.notes,
         verificationCode: await this.generateVerificationCode(),
@@ -113,12 +151,13 @@ export class OrdersService {
       },
     });
 
-    // Notifier le propriétaire du restaurant de la nouvelle commande
-    const orderType = dto.deliveryAddress
-      ? `🛵 Livraison — ${dto.deliveryAddress}`
-      : order.table?.number
-        ? `table ${order.table.number}`
-        : '🏃 Emporter';
+    // Commande de livraison : paiement obligatoire avant transmission au restaurant —
+    // on ne notifie/affiche au restaurant qu'une fois le paiement confirmé (cf. PaymentsService).
+    if (isDelivery) {
+      return order;
+    }
+
+    const orderType = order.table?.number ? `table ${order.table.number}` : '🏃 Emporter';
 
     this.notifications.sendToRestaurantOwner(dto.restaurantId, {
       title: '📦 Nouvelle commande',
@@ -136,11 +175,15 @@ export class OrdersService {
   async findByUser(userId: string) {
     return this.prisma.order.findMany({
       where: { userId },
-      include: {
-        items: true,
+      select: {
+        id: true, status: true, totalCents: true, deliveryFeeUsdCents: true,
+        deliveryAddress: true, isPaid: true, escrowReleased: true,
+        verificationCode: true, createdAt: true,
         restaurant: { select: { id: true, name: true, imageUrl: true } },
+        items: { select: { id: true, name: true, quantity: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 30,
     });
   }
 
@@ -152,7 +195,11 @@ export class OrdersService {
     if (role !== 'ADMIN' && restaurant.ownerId !== userId) throw new ForbiddenException();
 
     return this.prisma.order.findMany({
-      where: { restaurantId },
+      where: {
+        restaurantId,
+        // Commandes de livraison non payées : jamais transmises au restaurant
+        NOT: { AND: [{ deliveryAddress: { not: null } }, { isPaid: false }] },
+      },
       include: {
         items: true,
         user:  { select: { firstName: true, lastName: true, phone: true } },
@@ -179,7 +226,29 @@ export class OrdersService {
     const isOwner      = order.restaurant.ownerId === userId;
     if (!isClient && !isOwner && role !== 'ADMIN') throw new ForbiddenException();
 
+    // Commande de livraison non payée : invisible pour le restaurant tant que non transmise
+    if (isOwner && role !== 'ADMIN' && isHiddenFromRestaurant(order)) {
+      throw new NotFoundException('Commande introuvable');
+    }
+
     return order;
+  }
+
+  // ── Commandes du client ───────────────────────────────────────────────────
+
+  async findClientOrders(userId: string) {
+    return this.prisma.order.findMany({
+      where: { userId },
+      select: {
+        id: true, status: true, totalCents: true, deliveryFeeUsdCents: true,
+        deliveryAddress: true, isPaid: true, escrowReleased: true,
+        verificationCode: true, createdAt: true,
+        restaurant: { select: { id: true, name: true, imageUrl: true } },
+        items: { select: { id: true, name: true, quantity: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
   }
 
   // ── Commandes du livreur ──────────────────────────────────────────────────
@@ -188,10 +257,16 @@ export class OrdersService {
     return this.prisma.order.findMany({
       where: {
         assignedDriverId: driverId,
-        status: { in: ['PACKAGING', 'OUT_FOR_DELIVERY'] },
+        OR: [
+          { status: { in: ['PACKAGING', 'OUT_FOR_DELIVERY'] } },
+          { status: 'DELIVERED', escrowReleased: false },
+        ],
       },
-      include: {
-        items: true,
+      select: {
+        id: true, status: true, totalCents: true, notes: true,
+        deliveryAddress: true, deliveryLat: true, deliveryLng: true,
+        verificationCode: true, escrowReleased: true, createdAt: true,
+        items: { select: { id: true, name: true, quantity: true, priceUsdCents: true } },
         restaurant: { select: { id: true, name: true, imageUrl: true, lat: true, lng: true, address: true } },
         user: { select: { firstName: true, lastName: true, phone: true } },
       },
@@ -274,14 +349,15 @@ export class OrdersService {
 
     this.gateway.broadcastDeliveryRequest(driverIds, {
       orderId,
-      restaurantName: order.restaurant.name,
-      restaurantLat: order.restaurant.lat,
-      restaurantLng: order.restaurant.lng,
-      deliveryAddress: order.deliveryAddress,
-      deliveryLat: order.deliveryLat,
-      deliveryLng: order.deliveryLng,
-      totalCents: order.totalCents,
-      clientName: order.user.firstName,
+      restaurantName:      order.restaurant.name,
+      restaurantLat:       order.restaurant.lat,
+      restaurantLng:       order.restaurant.lng,
+      deliveryAddress:     order.deliveryAddress,
+      deliveryLat:         order.deliveryLat,
+      deliveryLng:         order.deliveryLng,
+      deliveryFeeUsdCents: order.deliveryFeeUsdCents,
+      driverEarningsCents: order.driverEarningsCents,
+      clientName:          order.user.firstName,
     });
 
     return { driversNotified: nearby.length };
@@ -333,55 +409,119 @@ export class OrdersService {
     });
   }
 
-  // ── Livreur confirme récupération au restaurant ───────────────────────────
+  // ── Livreur scanne le code restaurant → débloque adresse client ─────────
 
-  async driverPickup(orderId: string, driverId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+  async driverScanPickup(orderId: string, driverId: string, code: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: { select: { id: true } }, restaurant: { select: { id: true } } },
+    });
     if (!order) throw new NotFoundException('Commande introuvable');
     if (order.assignedDriverId !== driverId) throw new ForbiddenException('Non assigné à cette commande');
-    if (order.status !== 'PACKAGING') throw new BadRequestException('La commande doit être en PACKAGING');
+    if (!['PACKAGING', 'OUT_FOR_DELIVERY'].includes(order.status)) {
+      throw new BadRequestException('La commande doit être en PACKAGING');
+    }
+    if (!code?.trim() || code.trim() !== order.verificationCode) {
+      throw new BadRequestException('Code commande invalide');
+    }
+
+    // Génère le deliveryCode si pas encore fait
+    let deliveryCode = order.deliveryCode;
+    if (!deliveryCode) {
+      deliveryCode = await this.generateDeliveryCode();
+    }
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data:  { status: 'OUT_FOR_DELIVERY' },
+      data:  { status: 'OUT_FOR_DELIVERY', deliveryCode },
       include: { user: { select: { id: true } }, restaurant: { select: { id: true } } },
     });
 
-    // Notifier le client
     this.notifications.sendToUser(updated.user.id, {
       title: '🛵 Votre commande est en route !',
-      body: 'Votre livreur vient de récupérer votre commande',
+      body: 'Votre livreur a récupéré votre commande et se dirige vers vous',
       url: `/track/${orderId}`,
     }).catch((err) => this.logger.warn(`Notification "en route" échouée (${orderId}): ${err.message}`));
 
     this.gateway.emitOrderStatus(updated.restaurant.id, updated.user.id, updated);
 
-    return updated;
+    return {
+      deliveryAddress: order.deliveryAddress,
+      deliveryLat: order.deliveryLat,
+      deliveryLng: order.deliveryLng,
+      deliveryCode,
+      clientName: '',
+    };
   }
 
-  // ── Livreur confirme livraison ────────────────────────────────────────────
+  // ── Client confirme réception (code du livreur) → DELIVERED + séquestre libéré ──
 
-  async driverDeliver(orderId: string, driverId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+  async confirmDelivery(orderId: string, userId: string, code: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { restaurant: { select: { id: true, ownerId: true } } },
+    });
     if (!order) throw new NotFoundException('Commande introuvable');
-    if (order.assignedDriverId !== driverId) throw new ForbiddenException('Non assigné à cette commande');
-    if (order.status !== 'OUT_FOR_DELIVERY') throw new BadRequestException('La commande doit être OUT_FOR_DELIVERY');
+    if (order.userId !== userId) throw new ForbiddenException();
+    if (!order.deliveryAddress) throw new BadRequestException('Cette commande n\'est pas une livraison');
+    if (!order.isPaid) throw new BadRequestException('Cette commande n\'a pas encore été payée');
+    if (!['OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status)) {
+      throw new BadRequestException('La commande doit être en livraison');
+    }
+    if (order.escrowReleased) return order;
+    if (!code?.trim() || code.trim() !== order.deliveryCode) {
+      throw new BadRequestException('Code de livraison invalide');
+    }
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data:  { status: 'DELIVERED', driverLat: null, driverLng: null },
-      include: { user: { select: { id: true } }, restaurant: { select: { id: true } } },
+      data:  { status: 'DELIVERED', escrowReleased: true, escrowReleasedAt: new Date(), driverLat: null, driverLng: null },
     });
 
-    this.notifications.sendToUser(updated.user.id, {
-      title: '✅ Commande livrée !',
-      body: 'Votre commande a bien été livrée. Bon appétit !',
-      url: '/commander',
-    }).catch((err) => this.logger.warn(`Notification "livrée" échouée (${orderId}): ${err.message}`));
+    this.notifications.sendToRestaurantOwner(order.restaurant.id, {
+      title: '💰 Commande livrée & fonds débloqués',
+      body: 'Le client a confirmé la réception — les fonds sont disponibles',
+      url: '/dashboard',
+    }).catch((err) => this.logger.warn(`Notification déblocage échouée (${orderId}): ${err.message}`));
 
-    this.gateway.emitOrderStatus(updated.restaurant.id, updated.user.id, updated);
+    this.gateway.emitOrderStatus(order.restaurant.id, order.userId, updated);
+    return updated;
+  }
+
+  // ── Client signale un problème ────────────────────────────────────────────
+
+  async reportProblem(orderId: string, userId: string, reason: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { restaurant: { select: { id: true } } },
+    });
+    if (!order) throw new NotFoundException('Commande introuvable');
+    if (order.userId !== userId) throw new ForbiddenException();
+    if (!reason?.trim() || reason.trim().length < 10) {
+      throw new BadRequestException('Motif obligatoire (10 caractères minimum)');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data:  { problemReport: reason.trim(), problemReportedAt: new Date() },
+    });
+
+    this.notifications.sendToRestaurantOwner(order.restaurant.id, {
+      title: '⚠️ Problème signalé par le client',
+      body: reason.trim().slice(0, 80),
+      url: '/dashboard',
+    }).catch(() => {});
 
     return updated;
+  }
+
+  private async generateDeliveryCode(): Promise<string> {
+    for (let i = 0; i < 5; i++) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const existing = await this.prisma.order.findUnique({ where: { deliveryCode: code } });
+      if (!existing) return code;
+    }
+    throw new Error('Impossible de générer un code de livraison unique');
   }
 
   // ── Livreur envoie sa position GPS ───────────────────────────────────────
@@ -422,6 +562,12 @@ export class OrdersService {
       driverLng:       order.driverLng,
       driverLastSeen:  order.driverLastSeen,
       driver:          order.assignedDriver,
+      verificationCode:  order.verificationCode,
+      deliveryCode:      order.deliveryCode,
+      escrowReleased:    order.escrowReleased,
+      isPaid:            order.isPaid,
+      problemReport:     order.problemReport,
+      problemReportedAt: order.problemReportedAt,
       restaurant: {
         name:    order.restaurant.name,
         lat:     order.restaurant.lat,
@@ -462,6 +608,9 @@ export class OrdersService {
 
     const isOwner = order.restaurant.ownerId === userId;
     if (!isOwner && role !== 'ADMIN') throw new ForbiddenException();
+    if (role !== 'ADMIN' && isHiddenFromRestaurant(order)) {
+      throw new BadRequestException('Cette commande de livraison n\'a pas encore été payée');
+    }
 
     const updated = await this.prisma.order.update({
       where: { id },
@@ -483,6 +632,9 @@ export class OrdersService {
 
     const isOwner = order.restaurant.ownerId === userId;
     if (!isOwner && role !== 'ADMIN') throw new ForbiddenException();
+    if (role !== 'ADMIN' && isHiddenFromRestaurant(order)) {
+      throw new BadRequestException('Cette commande de livraison n\'a pas encore été payée');
+    }
 
     if (order.status !== 'PENDING') {
       throw new BadRequestException('Seules les commandes en attente peuvent être refusées');
@@ -505,6 +657,164 @@ export class OrdersService {
 
     this.gateway.emitOrderStatus(order.restaurant.id, order.userId, updated);
     return updated;
+  }
+
+  // ── Marketplace livreur : lister toutes les demandes disponibles ─────────
+
+  async getDeliveryRequests(driverId: string) {
+    const now = new Date();
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        deliveryAddress: { not: null },
+        isPaid: true,
+        status: 'PACKAGING',
+        assignedDriverId: null,
+        OR: [
+          { claimedByDriverId: null },
+          { claimedByDriverId: driverId },
+          { claimedAt: { lt: tenMinutesAgo } }, // claim expiré
+        ],
+      },
+      select: {
+        id: true, status: true, deliveryAddress: true, deliveryLat: true, deliveryLng: true,
+        deliveryFeeUsdCents: true, driverEarningsCents: true, createdAt: true,
+        claimedByDriverId: true, claimedAt: true,
+        restaurant: { select: { id: true, name: true, imageUrl: true, lat: true, lng: true, address: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 30,
+    });
+
+    // Marquer celles qui sont grisées (prises par quelqu'un d'autre, encore dans la fenêtre de 10 min)
+    return orders.map(o => ({
+      ...o,
+      isClaimed: !!o.claimedByDriverId && o.claimedByDriverId !== driverId && o.claimedAt && o.claimedAt > tenMinutesAgo,
+      isClaimedByMe: o.claimedByDriverId === driverId,
+    }));
+  }
+
+  // ── Livreur réserve une demande (10 min) ─────────────────────────────────
+
+  async claimDelivery(orderId: string, driverId: string) {
+    const now = new Date();
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+    const result = await this.prisma.order.updateMany({
+      where: {
+        id: orderId,
+        status: 'PACKAGING',
+        isPaid: true,
+        assignedDriverId: null,
+        OR: [
+          { claimedByDriverId: null },
+          { claimedAt: { lt: tenMinutesAgo } },
+          { claimedByDriverId: driverId },
+        ],
+      },
+      data: { claimedByDriverId: driverId, claimedAt: now },
+    });
+
+    if (result.count === 0) {
+      throw new BadRequestException('Cette livraison est déjà réservée par un autre livreur');
+    }
+    return { ok: true };
+  }
+
+  // ── Stats journalières + mensuelles du livreur ───────────────────────────
+
+  async getDriverStats(driverId: string) {
+    const now        = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const weekStart  = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [todayDeliveries, weekDeliveries, monthDeliveries] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { assignedDriverId: driverId, status: 'DELIVERED', escrowReleasedAt: { gte: todayStart } },
+        select: { id: true, driverEarningsCents: true, restaurant: { select: { name: true } }, escrowReleasedAt: true },
+        orderBy: { escrowReleasedAt: 'desc' },
+      }),
+      this.prisma.order.findMany({
+        where: { assignedDriverId: driverId, status: 'DELIVERED', escrowReleasedAt: { gte: weekStart } },
+        select: { id: true, driverEarningsCents: true },
+      }),
+      this.prisma.order.findMany({
+        where: { assignedDriverId: driverId, status: 'DELIVERED', escrowReleasedAt: { gte: monthStart } },
+        select: { id: true, driverEarningsCents: true },
+      }),
+    ]);
+
+    return {
+      today: {
+        count:         todayDeliveries.length,
+        earningsCents: todayDeliveries.reduce((s, o) => s + o.driverEarningsCents, 0),
+        deliveries:    todayDeliveries,
+      },
+      week: {
+        count:         weekDeliveries.length,
+        earningsCents: weekDeliveries.reduce((s, o) => s + o.driverEarningsCents, 0),
+      },
+      month: {
+        count:         monthDeliveries.length,
+        earningsCents: monthDeliveries.reduce((s, o) => s + o.driverEarningsCents, 0),
+      },
+    };
+  }
+
+  // ── Affiliation livreur ↔ restaurant ─────────────────────────────────────
+
+  async joinAffiliation(driverId: string, code: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { affiliationCode: code } });
+    if (!restaurant) throw new NotFoundException('Code d\'affiliation invalide');
+
+    await this.prisma.driverAffiliation.upsert({
+      where:  { driverId_restaurantId: { driverId, restaurantId: restaurant.id } },
+      update: {},
+      create: { id: `aff-${driverId}-${restaurant.id}`, driverId, restaurantId: restaurant.id },
+    });
+    return { restaurantName: restaurant.name, restaurantId: restaurant.id };
+  }
+
+  async leaveAffiliation(driverId: string, restaurantId: string) {
+    await this.prisma.driverAffiliation.deleteMany({ where: { driverId, restaurantId } });
+    return { ok: true };
+  }
+
+  async getDriverAffiliations(driverId: string) {
+    return this.prisma.driverAffiliation.findMany({
+      where: { driverId },
+      include: { restaurant: { select: { id: true, name: true, imageUrl: true, address: true } } },
+    });
+  }
+
+  // ── Restaurant : générer / obtenir son code d'affiliation ────────────────
+
+  async getOrCreateAffiliationCode(restaurantId: string, ownerId: string, role: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    if (!restaurant) throw new NotFoundException('Restaurant introuvable');
+    if (role !== 'ADMIN' && restaurant.ownerId !== ownerId) throw new ForbiddenException();
+
+    if (restaurant.affiliationCode) return { code: restaurant.affiliationCode };
+
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const updated = await this.prisma.restaurant.update({
+      where: { id: restaurantId },
+      data:  { affiliationCode: code },
+    });
+    return { code: updated.affiliationCode! };
+  }
+
+  async getRestaurantAffiliatedDrivers(restaurantId: string, ownerId: string, role: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    if (!restaurant) throw new NotFoundException();
+    if (role !== 'ADMIN' && restaurant.ownerId !== ownerId) throw new ForbiddenException();
+
+    return this.prisma.driverAffiliation.findMany({
+      where: { restaurantId },
+      include: { driver: { select: { id: true, firstName: true, lastName: true, phone: true, avatarUrl: true, isAvailableForDelivery: true } } },
+    });
   }
 
   // ── Génère un code de vérification unique (retrait + livraison) ──────────

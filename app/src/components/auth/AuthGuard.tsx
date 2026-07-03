@@ -42,6 +42,12 @@ export function AuthGuard({ children }: Props) {
     return <Navigate to="/staff" replace />;
   }
 
+  // LIVREUR → redirige vers /driver si pas déjà sur une route autorisée
+  const DRIVER_ALLOWED = ['/driver', '/profile'];
+  if (user?.role === 'LIVREUR' && !DRIVER_ALLOWED.some(p => location.pathname.startsWith(p))) {
+    return <Navigate to="/driver" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -58,7 +64,9 @@ export function GuestGuard({ children }: Props) {
   if (!hasChecked || isLoading) return <Spinner />;
 
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'STAFF' ? '/staff' : '/home'} replace />;
+    if (user?.role === 'STAFF')    return <Navigate to="/staff"  replace />;
+    if (user?.role === 'LIVREUR')  return <Navigate to="/driver" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return <>{children}</>;

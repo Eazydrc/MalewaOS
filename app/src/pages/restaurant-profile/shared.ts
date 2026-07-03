@@ -23,6 +23,7 @@ export interface Reservation {
   id: string; date: string; partySize: number; notes?: string; status: string;
   user: { firstName: string; lastName: string; email: string; phone?: string };
   table?: { id: string; number: number; label?: string; seats: number } | null;
+  preOrderItems?: { id: string; menuItemId: string; name: string; priceUsdCents: number; quantity: number }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -33,6 +33,11 @@ const CLIENT_NAV = [
     ),
   },
   {
+    to: "/mes-commandes", label: "Commandes",
+    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>,
+    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 3h6a1 1 0 0 1 1 1v2H8V4a1 1 0 0 1 1-1z"/></svg>,
+  },
+  {
     to: "/profile", label: "Profil",
     icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
     iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
@@ -59,6 +64,21 @@ const RESTAURANT_NAV = [
   },
 ];
 
+// ─── Nav Livreur ──────────────────────────────────────────────────────────────
+
+const DRIVER_NAV = [
+  {
+    to: "/driver", label: "Livraisons",
+    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5" fill="white"/><circle cx="18.5" cy="18.5" r="2.5" fill="white"/></svg>,
+  },
+  {
+    to: "/profile", label: "Mon compte",
+    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  },
+];
+
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function BottomNav() {
@@ -66,7 +86,8 @@ export function BottomNav() {
   const { user } = useAuthStore();
 
   const isRestaurant = user?.role === "RESTAURANT";
-  const nav = isRestaurant ? RESTAURANT_NAV : CLIENT_NAV;
+  const isDriver     = user?.role === "LIVREUR";
+  const nav = isRestaurant ? RESTAURANT_NAV : isDriver ? DRIVER_NAV : CLIENT_NAV;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 safe-area-pb" style={{ maxWidth: "430px", margin: "0 auto" }}>

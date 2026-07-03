@@ -126,9 +126,12 @@ export class MenuService {
       where: { id: restaurantId, isActive: true },
       select: {
         id: true, name: true, description: true, imageUrl: true,
-        address: true, city: true, isOpen: true, openingHours: true,
+        address: true, city: true, phone: true, isOpen: true, openingHours: true,
         categories: true, priceRange: true, rating: true, reviewCount: true,
         subscription: true,
+        structuredAddress: {
+          select: { commune: true, quartier: true, numero: true, reference: true },
+        },
       },
     });
     if (!restaurant) throw new NotFoundException('Restaurant introuvable');

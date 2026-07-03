@@ -44,49 +44,77 @@ function ListSkeleton() {
   );
 }
 
-// ── Restaurant Card (compact) ─────────────────────────────────────────────────
+// ── Restaurant Card — style Uber Eats ────────────────────────────────────────
 
 function RestaurantCard({ r, onClick }: { r: any; onClick: () => void }) {
+  const cuisine = r.cuisine ?? (Array.isArray(r.categories) ? r.categories.join(' · ') : '');
+  const hasRating = typeof r.rating === 'number' && r.rating > 0;
+  const isDelivery = r.restaurantType === 'LIVRAISON' || r.restaurantType === 'LES_DEUX';
+
   return (
     <button
       onClick={onClick}
-      className="card overflow-hidden text-left active:scale-[0.97] transition-transform no-tap"
+      className="w-full text-left active:scale-[0.98] transition-transform no-tap group"
     >
-      <div className="relative h-24 bg-surface-2 overflow-hidden">
+      {/* Image avec overlay gradient */}
+      <div className="relative w-full rounded-2xl overflow-hidden bg-surface-2" style={{ aspectRatio: '4/3' }}>
         {r.imageUrl ? (
-          <img src={r.imageUrl} alt={r.name} className="w-full h-full object-cover" />
+          <img
+            src={r.imageUrl}
+            alt={r.name}
+            className="w-full h-full object-cover group-active:brightness-90 transition-all"
+          />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
+          <div className="w-full h-full flex items-center justify-center text-5xl">🍽️</div>
         )}
-        <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-          r.isOpen
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-            : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
-        }`}>
-          {r.isOpen ? 'Ouvert' : 'Fermé'}
-        </span>
+
+        {/* Gradient bas pour lisibilité future */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+
+        {/* Badge fermé uniquement (ouvert = pas de badge, plus propre) */}
+        {!r.isOpen && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-2xl">
+            <span className="px-3 py-1 bg-black/70 text-white text-xs font-bold rounded-full backdrop-blur-sm">
+              Fermé
+            </span>
+          </div>
+        )}
+
+        {/* Badge livraison */}
+        {isDelivery && r.isOpen && (
+          <span className="absolute top-2.5 left-2.5 flex items-center gap-1 px-2 py-1 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold rounded-full">
+            🛵 Livraison
+          </span>
+        )}
       </div>
-      <div className="p-2.5 space-y-1">
-        <p className="text-xs font-bold text-text leading-tight line-clamp-1">{r.name}</p>
-        <p className="text-[10px] text-text-3 line-clamp-1">
-          {r.cuisine ?? (Array.isArray(r.categories) ? r.categories.join(' · ') : '')}
-        </p>
-        <div className="flex items-center justify-between gap-1">
-          {r.rating && (
-            <span className="flex items-center gap-0.5 text-amber-500 text-[10px] font-semibold">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-              {r.rating.toFixed(1)}
+
+      {/* Infos sous l'image */}
+      <div className="pt-2.5 pb-1 px-0.5 space-y-1">
+        <p className="text-sm font-bold text-text leading-snug">{r.name}</p>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {hasRating && (
+            <span className="flex items-center gap-0.5 text-amber-400 text-xs font-bold">
+              ★ {r.rating.toFixed(1)}
             </span>
           )}
-          {r.distance !== undefined && (
-            <span className="text-[9px] text-text-3">{r.distance.toFixed(1)} km</span>
+          {hasRating && (cuisine || r.distance !== undefined) && (
+            <span className="text-text-3 text-xs">·</span>
           )}
-          {r.restaurantType && (
-            <span className="text-[9px] text-text-3 truncate">{TYPE_LABELS[r.restaurantType as RestaurantType]}</span>
+          {cuisine && (
+            <span className="text-xs text-text-3 truncate max-w-[120px]">{cuisine}</span>
+          )}
+          {r.distance !== undefined && isFinite(r.distance) && (
+            <>
+              <span className="text-text-3 text-xs">·</span>
+              <span className="text-xs text-text-3 shrink-0">{r.distance.toFixed(1)} km</span>
+            </>
           )}
         </div>
+
+        {r.priceRange && (
+          <p className="text-xs text-text-3">{'$'.repeat(r.priceRange)}</p>
+        )}
       </div>
     </button>
   );
@@ -499,7 +527,7 @@ export default function SearchPage() {
               <p className="text-xs text-text-3">Essayez d'autres mots-clés ou supprimez des filtres</p>
             </div>
           ) : (
-            <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 transition-opacity ${isStale ? 'opacity-60' : ''}`}>
+            <div className={`grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-5 transition-opacity ${isStale ? 'opacity-60' : ''}`}>
               {listResults.map((r: any) => (
                 <RestaurantCard
                   key={r.id}

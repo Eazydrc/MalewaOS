@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useMyTables } from "@/hooks/useTables";
-import { Reservation, STATUS } from "./shared";
+import { Reservation, STATUS, fc } from "./shared";
 
 export function ReservationsTab({ restaurantId }: { restaurantId: string }) {
   const qc = useQueryClient();
@@ -65,6 +65,17 @@ export function ReservationsTab({ restaurantId }: { restaurantId: string }) {
           <span>👥 {r.partySize} pers.</span>
         </div>
         {r.notes && <p className="text-xs text-text-2 italic bg-surface-2 px-3 py-2 rounded-lg">"{r.notes}"</p>}
+        {(r.preOrderItems?.length ?? 0) > 0 && (
+          <div className="bg-surface-2 rounded-lg px-3 py-2 space-y-1">
+            <p className="text-[10px] font-bold text-text-3 uppercase tracking-wide">🍽️ Pré-commande</p>
+            {r.preOrderItems!.map(it => (
+              <div key={it.id} className="flex justify-between text-xs text-text-2">
+                <span>{it.quantity}× {it.name}</span>
+                <span className="font-semibold">{fc(it.priceUsdCents * it.quantity)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {["PENDING", "CONFIRMED"].includes(r.status) && (tables?.length ?? 0) > 0 && (
           <div>
             <label className="text-[10px] font-bold text-text-3 uppercase tracking-wide block mb-1">Table assignée</label>

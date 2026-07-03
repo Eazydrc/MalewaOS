@@ -40,6 +40,7 @@ import { StaffDashboardPage } from "@/pages/StaffDashboardPage";
 import DriverDashboardPage  from "@/pages/DriverDashboardPage";
 import OrderTrackingPage    from "@/pages/OrderTrackingPage";
 import RegisterDriverPage   from "@/pages/RegisterDriverPage";
+import MyOrdersPage         from "@/pages/MyOrdersPage";
 
 // Abonnement
 import { SubscriptionPage } from "@/pages/SubscriptionPage";
@@ -89,6 +90,7 @@ export default function App() {
       <Route path="/staff"           element={<AuthGuard><StaffDashboardPage /></AuthGuard>} />
       <Route path="/driver"          element={<AuthGuard><DriverDashboardPage /></AuthGuard>} />
       <Route path="/track/:orderId"  element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
+      <Route path="/mes-commandes"   element={<AuthGuard><MyOrdersPage /></AuthGuard>} />
       <Route path="/abonnement"      element={<AuthGuard><SubscriptionPage /></AuthGuard>} />
       <Route path="/abonnement/cinetpay" element={<AuthGuard><AbonnementPage /></AuthGuard>} />
       <Route path="/payment"             element={<AuthGuard><PaymentPage /></AuthGuard>} />

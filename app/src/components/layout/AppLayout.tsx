@@ -11,9 +11,10 @@ interface AppLayoutProps {
   showBack?: boolean;
   headerRight?: ReactNode;
   noPadding?: boolean;
+  noHeader?: boolean;
 }
 
-export function AppLayout({ children, title, showBack = false, headerRight, noPadding = false }: AppLayoutProps) {
+export function AppLayout({ children, title, showBack = false, headerRight, noPadding = false, noHeader = false }: AppLayoutProps) {
   const isDesktop = useIsDesktop();
 
   // ── Layout Desktop ─────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ export function AppLayout({ children, title, showBack = false, headerRight, noPa
   return (
     <div className="min-h-screen bg-surface-gradient" style={{ maxWidth: "430px", margin: "0 auto", position: "relative" }}>
       {/* Header */}
-      <header className="sticky top-0 z-40 card-glass border-b border-border/60 rounded-none px-4 h-14 flex items-center justify-between gap-3">
+      {!noHeader && <header className="sticky top-0 z-40 card-glass border-b border-border/60 rounded-none px-4 h-14 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           {showBack ? (
             <button
@@ -88,7 +89,8 @@ export function AppLayout({ children, title, showBack = false, headerRight, noPa
           {headerRight}
           <ThemeToggle />
         </div>
-      </header>
+      </header>}
+
 
       {/* Content */}
       <main className={noPadding ? "pb-24" : "px-4 py-5 pb-28 space-y-6"}>

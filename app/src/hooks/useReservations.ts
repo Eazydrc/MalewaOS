@@ -21,6 +21,19 @@ export interface Reservation {
     lastName: string;
     phone?: string;
   };
+  table?: {
+    id: string;
+    number: string;
+    label?: string;
+    seats: number;
+  };
+  preOrderItems?: {
+    id: string;
+    menuItemId: string;
+    name: string;
+    priceUsdCents: number;
+    quantity: number;
+  }[];
 }
 
 export function useMyReservations() {
@@ -41,8 +54,13 @@ export function useReservation(id: string) {
 export function useCreateReservation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { restaurantId: string; date: string; partySize: number; notes?: string }) =>
-      api.post<Reservation>('/reservations', data),
+    mutationFn: (data: {
+      restaurantId: string;
+      date: string;
+      partySize: number;
+      notes?: string;
+      items?: { menuItemId: string; quantity: number }[];
+    }) => api.post<Reservation>('/reservations', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['reservations'] }),
   });
 }

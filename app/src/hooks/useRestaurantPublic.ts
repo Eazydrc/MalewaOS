@@ -7,6 +7,7 @@ export interface PublicRestaurant {
   id: string;
   name: string;
   tagline?: string;
+  description?: string;
   story?: string;
   imageUrl?: string;
   heroImageUrl?: string;
