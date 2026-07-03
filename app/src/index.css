@@ -6,85 +6,82 @@
    VARIABLES CSS — THÈME CLAIR
    ═══════════════════════════════════════════════════════ */
 :root {
-  /* Couleurs (canaux RGB sans parenthèses) */
-  --color-bg:            254 254 254;
-  --color-surface:       249 249 251;
-  --color-surface-2:     241 241 245;
-  --color-surface-3:     232 232 239;
-  --color-border:        226 226 234;
-  --color-border-strong: 200 200 216;
-  --color-text:          9 9 11;
-  --color-text-2:        75 75 99;
-  --color-text-3:        153 153 176;
-  --color-accent:        232 93 38;
-  --color-accent-soft:   254 240 232;
-  --color-accent-dark:   196 77 26;
+  /* ── THÈME PREMIUM DARK NAVY (défaut) ── */
+  --color-bg:            13 14 30;       /* #0D0E1E — navy profond */
+  --color-surface:       20 23 42;       /* #14172A — surface card */
+  --color-surface-2:     28 32 56;       /* #1C2038 — surface élevée */
+  --color-surface-3:     38 44 74;       /* #262C4A */
+  --color-border:        50  58  92;     /* #323A5C — bleu ardoise, visible sans agresser */
+  --color-border-strong: 80  92  140;    /* #505C8C — plus marqué */
+  --color-text:          232 234 248;    /* #E8EAF8 — blanc bleuté */
+  --color-text-2:        148 158 196;    /* #949EC4 — gris bleuté */
+  --color-text-3:        80  90  128;    /* #505A80 — subtil */
+  --color-accent:        232 93  38;     /* #E85D26 — orange Elengi */
+  --color-accent-soft:   60  24  10;     /* orange très sombre */
+  --color-accent-dark:   196 77  26;
   --color-accent-dim:    245 120 74;
-  --color-success:       22 163 74;
-  --color-success-soft:  240 253 244;
-  --color-danger:        220 38 38;
-  --color-danger-soft:   254 242 242;
-  --color-warning:       217 119 6;
-  --color-warning-soft:  255 251 235;
-  --color-dark:          9 9 11;
+  --color-success:       74  222 128;    /* vert vif */
+  --color-success-soft:  5   40  20;
+  --color-danger:        248 113 113;
+  --color-danger-soft:   60  10  10;
+  --color-warning:       251 191 36;
+  --color-warning-soft:  60  40  5;
+  --color-dark:          248 248 252;
 
-  /* Ombres — minimales et plates, façon Uber Eats */
-  --shadow-card:       0 1px 2px rgb(0 0 0 / 0.05);
-  --shadow-card-hover: 0 2px 8px rgb(0 0 0 / 0.10);
-  --shadow-input:      0 0 0 2px rgb(232 93 38 / 0.16);
-  --shadow-input-err:  0 0 0 2px rgb(220 38 38 / 0.16);
-  --shadow-btn:        none;
-  --shadow-btn-hover:  none;
-  --shadow-pill:       none;
-  --shadow-modal:      0 8px 16px rgb(0 0 0 / 0.08), 0 24px 48px rgb(0 0 0 / 0.12);
-  --shadow-glow-accent:0 0 0 3px rgb(232 93 38 / 0.20), 0 4px 16px rgb(232 93 38 / 0.16);
+  /* Ombres premium dark */
+  --shadow-card:        0 2px 12px rgb(0 0 0 / 0.40);
+  --shadow-card-hover:  0 4px 24px rgb(0 0 0 / 0.55);
+  --shadow-input:       0 0 0 2px rgb(232 93 38 / 0.28);
+  --shadow-input-err:   0 0 0 2px rgb(248 113 113 / 0.28);
+  --shadow-btn:         0 4px 14px rgb(232 93 38 / 0.30);
+  --shadow-btn-hover:   0 6px 20px rgb(232 93 38 / 0.45);
+  --shadow-pill:        0 2px 8px rgb(0 0 0 / 0.30);
+  --shadow-modal:       0 8px 32px rgb(0 0 0 / 0.60), 0 32px 64px rgb(0 0 0 / 0.40);
+  --shadow-glow-accent: 0 0 0 3px rgb(232 93 38 / 0.25), 0 4px 20px rgb(232 93 38 / 0.20);
 
-  /* Aplats — plus de dégradés, noir plein façon Uber Eats */
-  --btn-primary:       linear-gradient(0deg, #09090B 0%, #09090B 100%);
-  --surface-gradient:  linear-gradient(0deg, #FEFEFE 0%, #FEFEFE 100%);
-  --card-gradient:     linear-gradient(0deg, #FFFFFF 0%, #FFFFFF 100%);
+  /* Gradients */
+  --btn-primary:       linear-gradient(135deg, #E85D26 0%, #c44d1a 100%);
+  --surface-gradient:  linear-gradient(160deg, #0D0E1E 0%, #14172A 100%);
+  --card-gradient:     linear-gradient(160deg, #14172A 0%, #1C2038 100%);
 }
 
 /* ═══════════════════════════════════════════════════════
    VARIABLES CSS — THÈME SOMBRE
    ═══════════════════════════════════════════════════════ */
 .dark {
-  --color-bg:            10 10 14;
-  --color-surface:       16 16 22;
-  --color-surface-2:     24 24 32;
-  --color-surface-3:     34 34 46;
-  --color-border:        44 44 60;
-  --color-border-strong: 64 64 86;
-  --color-text:          248 248 252;
-  --color-text-2:        180 180 204;
-  --color-text-3:        100 100 130;
-  --color-accent:        232 93 38;
-  --color-accent-soft:   44 18 8;
-  --color-accent-dark:   196 77 26;
+  /* Variante légèrement plus sombre pour toggle dark manuel */
+  --color-bg:            8  9  20;
+  --color-surface:       14 16 32;
+  --color-surface-2:     20 24 44;
+  --color-surface-3:     28 34 58;
+  --color-border:        50  58  92;
+  --color-border-strong: 80  92  140;
+  --color-text:          232 234 248;
+  --color-text-2:        148 158 196;
+  --color-text-3:        80  90  128;
+  --color-accent:        232 93  38;
+  --color-accent-soft:   60  24  10;
+  --color-accent-dark:   196 77  26;
   --color-accent-dim:    245 120 74;
-  --color-success:       74 222 128;
-  --color-success-soft:  5 30 15;
+  --color-success:       74  222 128;
+  --color-success-soft:  5   40  20;
   --color-danger:        248 113 113;
-  --color-danger-soft:   50 8 8;
+  --color-danger-soft:   60  10  10;
   --color-warning:       251 191 36;
-  --color-warning-soft:  50 26 3;
+  --color-warning-soft:  60  40  5;
   --color-dark:          248 248 252;
-
-  /* Ombres dark — minimales et plates */
-  --shadow-card:       0 1px 2px rgb(0 0 0 / 0.40);
-  --shadow-card-hover: 0 2px 10px rgb(0 0 0 / 0.50);
-  --shadow-input:      0 0 0 2px rgb(232 93 38 / 0.22);
-  --shadow-input-err:  0 0 0 2px rgb(220 38 38 / 0.22);
-  --shadow-btn:        none;
-  --shadow-btn-hover:  none;
-  --shadow-pill:       none;
-  --shadow-modal:      0 8px 20px rgb(0 0 0 / 0.40), 0 32px 64px rgb(0 0 0 / 0.50);
-  --shadow-glow-accent:0 0 0 3px rgb(232 93 38 / 0.25), 0 4px 20px rgb(232 93 38 / 0.20);
-
-  /* Aplats dark — blanc plein pour le bouton principal, fonds unis */
-  --btn-primary:      linear-gradient(0deg, #F8F8FC 0%, #F8F8FC 100%);
-  --surface-gradient: linear-gradient(0deg, #0A0A0E 0%, #0A0A0E 100%);
-  --card-gradient:    linear-gradient(0deg, #10101A 0%, #10101A 100%);
+  --shadow-card:        0 2px 16px rgb(0 0 0 / 0.50);
+  --shadow-card-hover:  0 4px 28px rgb(0 0 0 / 0.65);
+  --shadow-input:       0 0 0 2px rgb(232 93 38 / 0.30);
+  --shadow-input-err:   0 0 0 2px rgb(248 113 113 / 0.30);
+  --shadow-btn:         0 4px 14px rgb(232 93 38 / 0.35);
+  --shadow-btn-hover:   0 6px 22px rgb(232 93 38 / 0.50);
+  --shadow-pill:        0 2px 10px rgb(0 0 0 / 0.40);
+  --shadow-modal:       0 8px 40px rgb(0 0 0 / 0.70), 0 32px 80px rgb(0 0 0 / 0.50);
+  --shadow-glow-accent: 0 0 0 3px rgb(232 93 38 / 0.28), 0 4px 24px rgb(232 93 38 / 0.22);
+  --btn-primary:        linear-gradient(135deg, #E85D26 0%, #c44d1a 100%);
+  --surface-gradient:   linear-gradient(160deg, #08091A 0%, #0E1020 100%);
+  --card-gradient:      linear-gradient(160deg, #0E1020 0%, #14162C 100%);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -100,7 +97,7 @@
   html {
     scroll-behavior: smooth;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   html.dark {
@@ -138,16 +135,16 @@
   .card {
     background-color: rgb(var(--color-surface));
     background-image: var(--card-gradient);
-    border: 1px solid rgb(var(--color-border));
+    border: none;
     border-radius: 0.75rem;
     box-shadow: var(--shadow-card);
-    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   .card-hover {
     background-color: rgb(var(--color-surface));
     background-image: var(--card-gradient);
-    border: 1px solid rgb(var(--color-border));
+    border: none;
     border-radius: 0.75rem;
     box-shadow: var(--shadow-card);
     transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;

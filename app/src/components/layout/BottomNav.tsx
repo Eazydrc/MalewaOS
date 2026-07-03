@@ -1,113 +1,140 @@
 import { useLocation, Link } from "react-router-dom";
-import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/store/auth.store";
 
-// ─── Nav Client ───────────────────────────────────────────────────────────────
+// ─── Icônes SVG inline ────────────────────────────────────────────────────────
+
+const Icons = {
+  home: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" fill="currentColor"/><rect x="9" y="13" width="6" height="8" rx="1" fill="rgb(var(--color-bg))"/></>
+        : <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><rect x="9" y="13" width="6" height="8" rx="1" stroke="currentColor" strokeWidth="1.6"/></>
+      }
+    </svg>
+  ),
+  search: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><circle cx="11" cy="11" r="7" fill="currentColor"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><circle cx="11" cy="11" r="4" fill="rgb(var(--color-bg))"/></>
+        : <><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></>
+      }
+    </svg>
+  ),
+  bag: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><path d="M4 7h16l-1.5 12H5.5L4 7z" fill="currentColor"/><path d="M9 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></>
+        : <><path d="M4 7h16l-1.5 12H5.5L4 7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></>
+      }
+    </svg>
+  ),
+  orders: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><rect x="5" y="3" width="14" height="18" rx="2" fill="currentColor"/><line x1="9" y1="9" x2="15" y2="9" stroke="rgb(var(--color-bg))" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="13" x2="13" y2="13" stroke="rgb(var(--color-bg))" strokeWidth="1.5" strokeLinecap="round"/></>
+        : <><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" strokeWidth="1.6"/><line x1="9" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="13" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>
+      }
+    </svg>
+  ),
+  profile: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><circle cx="12" cy="7" r="4" fill="currentColor"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="currentColor"/></>
+        : <><circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.6"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></>
+      }
+    </svg>
+  ),
+  dashboard: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor"/><rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".5"/></>
+        : <><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.6"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.6"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.6"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.6"/></>
+      }
+    </svg>
+  ),
+  restaurant: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="currentColor"/>
+        : <><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>
+      }
+    </svg>
+  ),
+  truck: (filled: boolean) => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {filled
+        ? <><rect x="1" y="5" width="14" height="11" rx="1" fill="currentColor"/><path d="M15 9h4l3 3v4h-7V9z" fill="currentColor"/><circle cx="5" cy="19" r="2" fill="currentColor"/><circle cx="18" cy="19" r="2" fill="currentColor"/></>
+        : <><rect x="1" y="5" width="14" height="11" rx="1" stroke="currentColor" strokeWidth="1.6"/><path d="M15 9h4l3 3v4h-7V9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><circle cx="5" cy="19" r="2" stroke="currentColor" strokeWidth="1.6"/><circle cx="18" cy="19" r="2" stroke="currentColor" strokeWidth="1.6"/></>
+      }
+    </svg>
+  ),
+};
+
+// ─── Configs nav ──────────────────────────────────────────────────────────────
 
 const CLIENT_NAV = [
-  {
-    to: "/home", label: "Accueil",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><rect x="9" y="12" width="6" height="10" fill="white" opacity="0.9" rx="1"/></svg>,
-  },
-  {
-    to: "/search", label: "Explorer",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  },
-  {
-    to: "/commander", label: "Commander",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <path d="M16 10a4 4 0 0 1-8 0"/>
-      </svg>
-    ),
-    iconActive: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-        <path d="M3 6h18" stroke="white" strokeWidth="1.5" fill="none"/>
-        <path d="M16 10a4 4 0 0 1-8 0" stroke="white" strokeWidth="1.5" fill="none"/>
-      </svg>
-    ),
-  },
-  {
-    to: "/mes-commandes", label: "Commandes",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 3h6a1 1 0 0 1 1 1v2H8V4a1 1 0 0 1 1-1z"/></svg>,
-  },
-  {
-    to: "/profile", label: "Profil",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  },
+  { to: "/home",         label: "Accueil",   icon: Icons.home },
+  { to: "/search",       label: "Explorer",  icon: Icons.search },
+  { to: "/commander",    label: "Commander", icon: Icons.bag },
+  { to: "/mes-commandes",label: "Suivi",     icon: Icons.orders },
+  { to: "/profile",      label: "Profil",    icon: Icons.profile },
 ];
-
-// ─── Nav Restaurant ───────────────────────────────────────────────────────────
 
 const RESTAURANT_NAV = [
-  {
-    to: "/dashboard", label: "Dashboard",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
-  },
-  {
-    to: "/mon-restaurant", label: "Restaurant",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>,
-  },
-  {
-    to: "/profile", label: "Mon compte",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  },
+  { to: "/dashboard",    label: "Dashboard",  icon: Icons.dashboard },
+  { to: "/mon-restaurant",label:"Restaurant", icon: Icons.restaurant },
+  { to: "/profile",      label: "Compte",     icon: Icons.profile },
 ];
 
-// ─── Nav Livreur ──────────────────────────────────────────────────────────────
-
 const DRIVER_NAV = [
-  {
-    to: "/driver", label: "Livraisons",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5" fill="white"/><circle cx="18.5" cy="18.5" r="2.5" fill="white"/></svg>,
-  },
-  {
-    to: "/profile", label: "Mon compte",
-    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-    iconActive: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  },
+  { to: "/driver",  label: "Courses",  icon: Icons.truck },
+  { to: "/profile", label: "Profil",   icon: Icons.profile },
 ];
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export function BottomNav() {
   const { pathname } = useLocation();
-  const { user } = useAuthStore();
+  const { user }     = useAuthStore();
 
   const isRestaurant = user?.role === "RESTAURANT";
   const isDriver     = user?.role === "LIVREUR";
-  const nav = isRestaurant ? RESTAURANT_NAV : isDriver ? DRIVER_NAV : CLIENT_NAV;
+  const nav          = isRestaurant ? RESTAURANT_NAV : isDriver ? DRIVER_NAV : CLIENT_NAV;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-area-pb" style={{ maxWidth: "430px", margin: "0 auto" }}>
-      <div className="bg-bg border-t border-border px-2 pt-2 pb-4">
-        <div className="flex items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-50" style={{ maxWidth: "430px", margin: "0 auto" }}>
+      {/* Conteneur flottant */}
+      <div className="mx-3 mb-3 rounded-2xl overflow-hidden"
+        style={{
+          background: 'rgba(20,23,42,0.92)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 -2px 20px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.3)',
+        }}>
+        <div className="flex items-center justify-around px-1 pt-2 pb-3">
           {nav.map((item) => {
             const active = pathname === item.to || (item.to === "/home" && pathname === "/");
             return (
               <Link key={item.to} to={item.to}
-                className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-150 no-tap min-w-0",
-                  active ? "text-accent" : "text-text-3 hover:text-text-2 active:scale-95"
-                )}>
-                <div className={cn("transition-transform duration-150", active && "scale-110")}>
-                  {active ? item.iconActive : item.icon}
+                className="flex flex-col items-center gap-1 px-3 py-1 min-w-0 no-tap relative"
+                style={{ color: active ? 'rgb(var(--color-accent))' : 'rgb(var(--color-text-3))' }}>
+                {/* Indicateur ligne haut */}
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 transition-all duration-300"
+                  style={{
+                    width: active ? 20 : 0,
+                    height: 2,
+                    borderRadius: 2,
+                    background: 'rgb(var(--color-accent))',
+                    opacity: active ? 1 : 0,
+                  }} />
+                {/* Icône avec glow subtil si actif */}
+                <div className="transition-transform duration-200" style={{ transform: active ? 'translateY(-1px)' : 'none' }}>
+                  {item.icon(active)}
                 </div>
-                <span className={cn("text-[10px] font-semibold tracking-wide truncate", active ? "text-accent" : "text-text-3")}>
+                <span className="text-[10px] font-semibold tracking-wide transition-colors duration-200">
                   {item.label}
                 </span>
-                {active && <span className="absolute bottom-2 w-1 h-1 rounded-full bg-accent" />}
               </Link>
             );
           })}

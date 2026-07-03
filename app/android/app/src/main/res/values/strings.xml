@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Elengi</string>
+    <string name="title_activity_main">Elengi</string>
+    <string name="package_name">cd.elengi.app</string>
+    <string name="custom_url_scheme">cd.elengi.app</string>
+</resources>

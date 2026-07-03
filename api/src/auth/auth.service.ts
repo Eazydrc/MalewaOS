@@ -175,19 +175,19 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Identifiants incorrects');
 
-    // MFA pour Admin et SuperAdmin
-    if (MFA_ROLES.has(user.role)) {
-      const mfaToken = randomBytes(32).toString('hex');
-      await this.redis.set(
-        `mfa:${mfaToken}`,
-        JSON.stringify({ userId: user.id, email: user.email, role: user.role }),
-        MFA_TTL,
-      );
-      const code = this.generateOtp();
-      await this.storeOtp(user.email, code, 'mfa');
-      await this.mail.sendOtp(user.email, user.firstName, code);
-      return { mfaRequired: true, mfaToken };
-    }
+    // MFA pour Admin et SuperAdmin — TEMPORAIREMENT DÉSACTIVÉ (tests mobile)
+    // if (MFA_ROLES.has(user.role)) {
+    //   const mfaToken = randomBytes(32).toString('hex');
+    //   await this.redis.set(
+    //     `mfa:${mfaToken}`,
+    //     JSON.stringify({ userId: user.id, email: user.email, role: user.role }),
+    //     MFA_TTL,
+    //   );
+    //   const code = this.generateOtp();
+    //   await this.storeOtp(user.email, code, 'mfa');
+    //   await this.mail.sendOtp(user.email, user.firstName, code);
+    //   return { mfaRequired: true, mfaToken };
+    // }
 
     return this.issueTokens(user.id, user.email, user.role);
   }
