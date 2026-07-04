@@ -16,6 +16,9 @@ export function isAllowedOrigin(origin: string | undefined, frontendUrl: string 
     }
   }
 
+  // Autoriser tous les sous-domaines Vercel (previews de déploiement)
+  if (origin?.match(/^https:\/\/.*\.vercel\.app$/)) return true;
+
   const allowedOrigins = frontendUrl ? [frontendUrl] : ['http://localhost:5173', 'http://localhost:3001'];
   return allowedOrigins.includes(origin ?? '');
 }

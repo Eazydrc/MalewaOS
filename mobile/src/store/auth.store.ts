@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { configureApi, resetAxios, api } from '@elengi/shared';
 import { AuthUser } from '@elengi/shared';
+import { API_URL } from '../config';
 
 const TOKEN_ACCESS  = 'elengi_access';
 const TOKEN_REFRESH = 'elengi_refresh';
 
 // Configuration du client API avec AsyncStorage pour le mobile
 configureApi({
-  baseUrl: 'http://192.168.11.111:3001/api/v1',
+  baseUrl: API_URL,
   storage: {
     getAccessToken:  () => AsyncStorage.getItem(TOKEN_ACCESS),
     getRefreshToken: () => AsyncStorage.getItem(TOKEN_REFRESH),
