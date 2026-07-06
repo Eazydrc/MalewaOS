@@ -36,3 +36,4 @@ cookies.txt
 
 # Separate nested repo (own git history)
 /Elengi App/
+*.apk
