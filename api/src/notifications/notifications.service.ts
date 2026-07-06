@@ -8,11 +8,17 @@ export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
   constructor(private prisma: PrismaService, private config: ConfigService) {
-    webpush.setVapidDetails(
-      config.get('VAPID_SUBJECT') ?? 'mailto:noreply@elengi.cd',
-      config.get('VAPID_PUBLIC_KEY') ?? '',
-      config.get('VAPID_PRIVATE_KEY') ?? '',
-    );
+    const pub = config.get<string>('VAPID_PUBLIC_KEY');
+    const priv = config.get<string>('VAPID_PRIVATE_KEY');
+    if (pub && priv) {
+      webpush.setVapidDetails(
+        config.get('VAPID_SUBJECT') ?? 'mailto:noreply@elengi.cd',
+        pub,
+        priv,
+      );
+    } else {
+      this.logger.warn('VAPID keys not configured — push notifications disabled');
+    }
   }
 
   async subscribe(userId: string, endpoint: string, p256dh: string, auth: string) {

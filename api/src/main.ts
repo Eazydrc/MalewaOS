@@ -85,7 +85,10 @@ async function bootstrap() {
   console.log(`   NODE_ENV: ${nodeEnv} | CORS: ${frontendUrl ?? 'localhost (dev)'}`);
 }
 bootstrap().catch(err => {
-  process.stderr.write(`[FATAL BOOTSTRAP] ${err?.stack ?? err}\n`);
-  process.stdout.write(`[FATAL BOOTSTRAP] ${err?.message ?? err}\n`);
-  process.exit(1);
+  const msg = `[FATAL BOOTSTRAP] ${err?.stack ?? err}\n`;
+  process.stderr.write(msg);
+  // Drain stderr before exit so Railway captures the message
+  process.stderr.once('drain', () => process.exit(1));
+  if (!process.stderr.write('')) process.stderr.emit('drain');
+  setTimeout(() => process.exit(1), 2000);
 });
