@@ -9,7 +9,9 @@ import { AppModule } from './app.module';
 import { corsOriginCallback } from './common/cors.util';
 
 async function bootstrap() {
+  process.stdout.write('[BOOT] bootstrap() started\n');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  process.stdout.write('[BOOT] AppModule created\n');
 
   // ── Fichiers statiques : uploads ───────────────────────────────────────────
   const uploadsDir = join(process.cwd(), 'uploads');
@@ -68,4 +70,7 @@ async function bootstrap() {
   console.log(`🚀 Elengi API running on http://localhost:${port}/api/v1`);
   console.log(`   NODE_ENV: ${nodeEnv} | CORS: ${frontendUrl ?? 'localhost (dev)'}`);
 }
-bootstrap();
+bootstrap().catch(err => {
+  process.stderr.write(`[FATAL] ${err?.stack ?? err}\n`);
+  process.exit(1);
+});
