@@ -5,10 +5,8 @@
     "buildCommand": "npm install && npx prisma generate && npm run build"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && npm run start:prod",
+    "startCommand": "node -e \"console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'EMPTY'); console.log('PORT:', process.env.PORT);\" && npx prisma migrate deploy && npm run start:prod",
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3,
-    "healthcheckPath": "/api/v1/health",
-    "healthcheckTimeout": 120
+    "restartPolicyMaxRetries": 0
   }
 }
