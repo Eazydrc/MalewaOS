@@ -1,3 +1,12 @@
+process.on('uncaughtException', (err) => {
+  process.stderr.write(`[UNCAUGHT EXCEPTION] ${err?.stack ?? err}\n`);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  process.stderr.write(`[UNHANDLED REJECTION] ${reason}\n`);
+  process.exit(1);
+});
+
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
@@ -9,8 +18,13 @@ import { AppModule } from './app.module';
 import { corsOriginCallback } from './common/cors.util';
 
 async function bootstrap() {
+  process.stderr.write('[BOOT] bootstrap() started\n');
   process.stdout.write('[BOOT] bootstrap() started\n');
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
+  process.stderr.write('[BOOT] AppModule created\n');
   process.stdout.write('[BOOT] AppModule created\n');
 
   // ── Fichiers statiques : uploads ───────────────────────────────────────────
@@ -71,6 +85,7 @@ async function bootstrap() {
   console.log(`   NODE_ENV: ${nodeEnv} | CORS: ${frontendUrl ?? 'localhost (dev)'}`);
 }
 bootstrap().catch(err => {
-  process.stderr.write(`[FATAL] ${err?.stack ?? err}\n`);
+  process.stderr.write(`[FATAL BOOTSTRAP] ${err?.stack ?? err}\n`);
+  process.stdout.write(`[FATAL BOOTSTRAP] ${err?.message ?? err}\n`);
   process.exit(1);
 });

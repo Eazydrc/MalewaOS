@@ -22,10 +22,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
     try {
       await this.client.connect();
-      process.stdout.write('[REDIS] Connected\n');
+      process.stderr.write('[REDIS] Connected\n');
     } catch (err) {
-      process.stderr.write(`[REDIS] Connection failed: ${err?.message}\n`);
-      throw err;
+      process.stderr.write(`[REDIS] Connection failed (non-fatal): ${err?.message}\n`);
+      // Ne pas throw — l'app démarre même si Redis est indisponible
     }
   }
 
