@@ -15,4 +15,4 @@ RUN npx prisma generate && npm run build
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node warmup.js & npx prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "node warmup.js & WPID=$! && npx prisma migrate deploy && kill $WPID 2>/dev/null; node dist/main"]
