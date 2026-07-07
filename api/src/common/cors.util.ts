@@ -24,6 +24,8 @@ export function isAllowedOrigin(origin: string | undefined, frontendUrl: string 
 }
 
 export function corsOriginCallback(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+  // Requêtes sans Origin (app mobile, healthcheck, curl) — toujours autorisées
+  if (!origin) return callback(null, true);
   if (isAllowedOrigin(origin, process.env.FRONTEND_URL)) return callback(null, true);
   callback(new Error(`CORS bloqué pour l'origine : ${origin}`));
 }
