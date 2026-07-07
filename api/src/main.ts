@@ -2,7 +2,7 @@ import * as http from 'http';
 
 // Démarre un serveur HTTP minimal IMMÉDIATEMENT sur PORT
 // pour passer le healthcheck Railway pendant que NestJS s'initialise
-const PORT = process.env.PORT ?? 3000;
+const PORT = parseInt(process.env.PORT ?? '3000', 10);
 let nestApp: any = null;
 const warmupServer = http.createServer((req, res) => {
   if (nestApp) {
