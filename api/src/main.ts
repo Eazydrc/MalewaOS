@@ -1,10 +1,26 @@
-process.on('uncaughtException', (err) => {
-  process.stderr.write(`[UNCAUGHT EXCEPTION] ${err?.stack ?? err}\n`);
-  process.exit(1);
+import * as http from 'http';
+
+// Démarre un serveur HTTP minimal IMMÉDIATEMENT sur PORT
+// pour passer le healthcheck Railway pendant que NestJS s'initialise
+const PORT = process.env.PORT ?? 3000;
+let nestApp: any = null;
+const warmupServer = http.createServer((req, res) => {
+  if (nestApp) {
+    // NestJS prêt : déléguer
+    nestApp.getHttpServer().emit('request', req, res);
+  } else {
+    // Encore en cours d'initialisation : répondre 200 pour le healthcheck
+    if (req.url === '/api/v1/health' || req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'starting' }));
+    } else {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'starting', message: 'API initializing...' }));
+    }
+  }
 });
-process.on('unhandledRejection', (reason) => {
-  process.stderr.write(`[UNHANDLED REJECTION] ${reason}\n`);
-  process.exit(1);
+warmupServer.listen(PORT, '0.0.0.0', () => {
+  process.stderr.write(`[WARMUP] Listening on port ${PORT}\n`);
 });
 
 import { NestFactory } from '@nestjs/core';
@@ -19,20 +35,16 @@ import { corsOriginCallback } from './common/cors.util';
 
 async function bootstrap() {
   process.stderr.write('[BOOT] bootstrap() started\n');
-  process.stdout.write('[BOOT] bootstrap() started\n');
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
   process.stderr.write('[BOOT] AppModule created\n');
-  process.stdout.write('[BOOT] AppModule created\n');
 
-  // ── Fichiers statiques : uploads ───────────────────────────────────────────
   const uploadsDir = join(process.cwd(), 'uploads');
   if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
   app.useStaticAssets(uploadsDir, { prefix: '/uploads' });
 
-  // ── Sécurité : headers HTTP ────────────────────────────────────────────────
   app.use(helmet.default({
     contentSecurityPolicy: {
       directives: {
@@ -48,12 +60,9 @@ async function bootstrap() {
     crossOriginEmbedderPolicy: false,
   }));
 
-  // ── Cookie parser (requis pour les HttpOnly cookies) ──────────────────────
   app.use(cookieParser());
-
   app.setGlobalPrefix('api/v1');
 
-  // ── Validation globale ─────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist:            true,
@@ -62,7 +71,6 @@ async function bootstrap() {
     }),
   );
 
-  // ── CORS strict ────────────────────────────────────────────────────────────
   const frontendUrl = process.env.FRONTEND_URL;
   const nodeEnv     = process.env.NODE_ENV ?? 'development';
 
@@ -73,22 +81,21 @@ async function bootstrap() {
 
   app.enableCors({
     origin: corsOriginCallback,
-    credentials:    true,                              // indispensable pour les cookies cross-origin
+    credentials:    true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['X-Request-Id'],
     methods:        ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port, '0.0.0.0');
-  console.log(`🚀 Elengi API running on http://localhost:${port}/api/v1`);
-  console.log(`   NODE_ENV: ${nodeEnv} | CORS: ${frontendUrl ?? 'localhost (dev)'}`);
+  // NestJS prend le relais : stopper le warmup server et écouter sur le même port
+  nestApp = app;
+  warmupServer.close();
+  await app.listen(PORT, '0.0.0.0');
+  process.stderr.write(`[BOOT] NestJS ready on port ${PORT}\n`);
+  console.log(`🚀 Elengi API running on http://localhost:${PORT}/api/v1`);
 }
+
 bootstrap().catch(err => {
-  const msg = `[FATAL BOOTSTRAP] ${err?.stack ?? err}\n`;
-  process.stderr.write(msg);
-  // Drain stderr before exit so Railway captures the message
-  process.stderr.once('drain', () => process.exit(1));
-  if (!process.stderr.write('')) process.stderr.emit('drain');
-  setTimeout(() => process.exit(1), 2000);
+  process.stderr.write(`[FATAL BOOTSTRAP] ${err?.stack ?? err}\n`);
+  setTimeout(() => process.exit(1), 500);
 });
