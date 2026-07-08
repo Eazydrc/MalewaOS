@@ -15,4 +15,7 @@ RUN npx prisma generate && npm run build
 
 EXPOSE 3000
 
-CMD ["node", "dist/src/main"]
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
+
+CMD ["sh", "start.sh"]
