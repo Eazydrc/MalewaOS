@@ -49,26 +49,20 @@ export class AuthService {
     if (existing) throw new ConflictException('Email déjà utilisé');
 
     const hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    let user: { id: string; email: string; firstName: string };
-    try {
-      user = await this.prisma.user.create({
-        data: {
-          firstName:     dto.firstName,
-          lastName:      dto.lastName,
-          email:         dto.email,
-          phone:         dto.phone,
-          password:      hash,
-          role:          'CLIENT',
-          points:        100,
-          emailVerified: false,
-          isActive:      false,
-        },
-        select: { id: true, email: true, firstName: true },
-      });
-    } catch (dbErr) {
-      // DEBUG TEMPORAIRE — à supprimer après diagnostic
-      throw new Error(`[DEBUG_CREATE] code=${dbErr?.code} msg=${dbErr?.message?.substring(0, 300)}`);
-    }
+    const user = await this.prisma.user.create({
+      data: {
+        firstName:     dto.firstName,
+        lastName:      dto.lastName,
+        email:         dto.email,
+        phone:         dto.phone,
+        password:      hash,
+        role:          'CLIENT',
+        points:        100,
+        emailVerified: false,
+        isActive:      false,
+      },
+      select: { id: true, email: true, firstName: true },
+    });
 
     const code = this.generateOtp();
     await this.storeOtp(dto.email, code, 'verify_email');
