@@ -45,7 +45,7 @@ export class AuthService {
   // Le compte n'est activé qu'après vérification.
 
   async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email }, select: { id: true } });
     if (existing) throw new ConflictException('Email déjà utilisé');
 
     const hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -81,7 +81,7 @@ export class AuthService {
   // ── Inscription livreur ───────────────────────────────────────────────────
 
   async registerDriver(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email }, select: { id: true } });
     if (existing) throw new ConflictException('Email déjà utilisé');
 
     const hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -257,6 +257,7 @@ export class AuthService {
   }) {
     let user = await this.prisma.user.findFirst({
       where: { OR: [{ googleId: googleUser.googleId }, { email: googleUser.email }] },
+      select: { id: true, email: true, role: true, isActive: true, googleId: true },
     });
 
     if (!user) {
@@ -271,6 +272,7 @@ export class AuthService {
           emailVerified: true,  // Google a déjà vérifié l'email
           isActive:      true,
         },
+        select: { id: true, email: true, role: true, isActive: true, googleId: true },
       });
     } else if (!user.googleId) {
       user = await this.prisma.user.update({
@@ -280,6 +282,7 @@ export class AuthService {
           avatarUrl:     googleUser.avatarUrl,
           emailVerified: true,
         },
+        select: { id: true, email: true, role: true, isActive: true, googleId: true },
       });
     }
 
@@ -289,7 +292,7 @@ export class AuthService {
   // ── Mot de passe oublié ───────────────────────────────────────────────────
 
   async forgotPassword(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({ where: { email }, select: { firstName: true } });
     if (!user) return { message: 'Si ce compte existe, un code a été envoyé.' };
     const code = this.generateOtp();
     await this.storeOtp(email, code, 'reset');
@@ -363,7 +366,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { password: true } });
     if (!user || !user.password) {
       throw new UnauthorizedException('Ce compte utilise une connexion sociale (Google)');
     }
