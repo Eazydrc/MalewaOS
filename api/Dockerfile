@@ -15,7 +15,4 @@ RUN npx prisma generate && npm run build
 
 EXPOSE 3000
 
-COPY start.sh ./start.sh
-RUN chmod +x ./start.sh
-
-CMD ["sh", "start.sh"]
+CMD ["/bin/sh", "-c", "timeout 90 npx prisma migrate deploy; exec node dist/src/main"]
