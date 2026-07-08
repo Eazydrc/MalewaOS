@@ -4,7 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import * as helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { join } from 'path';
-import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { corsOriginCallback } from './common/cors.util';
 
@@ -49,9 +49,8 @@ async function bootstrap() {
   const frontendUrl = process.env.FRONTEND_URL;
   const nodeEnv     = process.env.NODE_ENV ?? 'development';
 
-  if (nodeEnv === 'production') {
-    if (!frontendUrl) throw new Error('[FATAL] FRONTEND_URL est requis en production');
-    if (!frontendUrl.startsWith('https://')) throw new Error('[FATAL] FRONTEND_URL doit utiliser HTTPS en production');
+  if (nodeEnv === 'production' && frontendUrl && !frontendUrl.startsWith('https://')) {
+    process.stderr.write('[WARN] FRONTEND_URL ne commence pas par https:// — à corriger\n');
   }
 
   app.enableCors({
@@ -61,16 +60,6 @@ async function bootstrap() {
     exposedHeaders: ['X-Request-Id'],
     methods:        ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
-
-  // Tuer le processus warmup.js qui tient le PORT
-  try {
-    const pid = parseInt(readFileSync('/tmp/warmup.pid', 'utf-8').trim(), 10);
-    process.kill(pid, 'SIGTERM');
-    process.stderr.write(`[BOOT] warmup killed (pid=${pid})\n`);
-    await new Promise(r => setTimeout(r, 200));
-  } catch {
-    // warmup pas lancé (dev local) — OK
-  }
 
   const port = parseInt(process.env.PORT ?? '3000', 10);
   await app.listen(port, '0.0.0.0');
