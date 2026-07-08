@@ -66,7 +66,11 @@ export class AuthService {
 
     const code = this.generateOtp();
     await this.storeOtp(dto.email, code, 'verify_email');
-    await this.mail.sendOtp(dto.email, user.firstName, code);
+    try {
+      await this.mail.sendOtp(dto.email, user.firstName, code);
+    } catch (mailErr) {
+      process.stderr.write(`[MAIL] sendOtp failed: ${mailErr?.message}\n`);
+    }
 
     return {
       message: 'Compte créé ! Vérifiez votre email pour activer votre compte.',
@@ -98,7 +102,11 @@ export class AuthService {
 
     const code = this.generateOtp();
     await this.storeOtp(dto.email, code, 'verify_email');
-    await this.mail.sendOtp(dto.email, user.firstName, code);
+    try {
+      await this.mail.sendOtp(dto.email, user.firstName, code);
+    } catch (mailErr) {
+      process.stderr.write(`[MAIL] sendOtp failed: ${mailErr?.message}\n`);
+    }
 
     return {
       message: 'Compte livreur créé ! Vérifiez votre email pour activer votre compte.',
@@ -144,7 +152,11 @@ export class AuthService {
 
     const code = this.generateOtp();
     await this.storeOtp(email, code, 'verify_email');
-    await this.mail.sendOtp(email, user.firstName, code);
+    try {
+      await this.mail.sendOtp(email, user.firstName, code);
+    } catch (mailErr) {
+      process.stderr.write(`[MAIL] sendOtp failed: ${mailErr?.message}\n`);
+    }
     return { message: 'Nouveau code envoyé.' };
   }
 
@@ -281,7 +293,11 @@ export class AuthService {
     if (!user) return { message: 'Si ce compte existe, un code a été envoyé.' };
     const code = this.generateOtp();
     await this.storeOtp(email, code, 'reset');
-    await this.mail.sendOtp(email, user.firstName, code);
+    try {
+      await this.mail.sendOtp(email, user.firstName, code);
+    } catch (mailErr) {
+      process.stderr.write(`[MAIL] sendOtp failed: ${mailErr?.message}\n`);
+    }
     return { message: 'Si ce compte existe, un code a été envoyé.' };
   }
 
