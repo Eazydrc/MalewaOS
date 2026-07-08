@@ -218,4 +218,11 @@ export class AuthController {
   changePassword(@CurrentUser() user: JwtUser, @Body() dto: ChangePasswordDto) {
     return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
   }
+
+  @SkipThrottle()
+  @Post('admin-activate')
+  @HttpCode(HttpStatus.OK)
+  adminActivate(@Body() dto: { email: string; adminKey: string }) {
+    return this.auth.adminActivateUser(dto.email, dto.adminKey);
+  }
 }

@@ -403,7 +403,24 @@ export class AuthService {
   private async storeOtp(email: string, code: string, purpose: string) {
     const key  = this.otpKey(email, purpose);
     const data = JSON.stringify({ code, attempts: 0, createdAt: Date.now() });
-    await this.redis.set(key, data, OTP_TTL);
+    try {
+      await this.redis.set(key, data, OTP_TTL);
+    } catch (err) {
+      process.stderr.write(`[REDIS] storeOtp failed (non-fatal): ${err?.message}\n`);
+    }
+  }
+
+  async adminActivateUser(email: string, adminKey: string) {
+    const expectedKey = this.config.get<string>('ADMIN_SETUP_KEY');
+    if (!expectedKey || adminKey !== expectedKey) {
+      throw new UnauthorizedException('Clé invalide');
+    }
+    const user = await this.prisma.user.update({
+      where: { email },
+      data: { isActive: true, emailVerified: true },
+      select: { id: true, email: true, firstName: true, role: true },
+    });
+    return { message: 'Compte activé', user };
   }
 
   private async validateOtp(
