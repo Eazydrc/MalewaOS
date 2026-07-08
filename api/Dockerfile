@@ -15,4 +15,6 @@ RUN npx prisma generate && npm run build
 
 EXPOSE 3000
 
-CMD ["/bin/sh", "-c", "timeout 90 npx prisma migrate deploy; exec node dist/src/main"]
+COPY migrate-prod.js ./migrate-prod.js
+
+CMD ["/bin/sh", "-c", "node migrate-prod.js && exec node dist/src/main"]
