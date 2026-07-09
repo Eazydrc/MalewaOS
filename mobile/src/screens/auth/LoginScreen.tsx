@@ -9,8 +9,8 @@ import { useLogin } from '@elengi/shared';
 import { useAuthStore } from '../../store/auth.store';
 
 export default function LoginScreen({ navigation }: any) {
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail]       = useState(__DEV__ ? 'maman@test.cd' : '');
+  const [password, setPassword] = useState(__DEV__ ? 'Test1234!' : '');
   const { fetchMe }             = useAuthStore();
 
   const login = useLogin({
