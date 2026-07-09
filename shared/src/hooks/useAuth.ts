@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../api/client';
+import { api, storeTokens } from '../api/client';
 import { AuthUser } from '../types';
 
 export function useMe() {
@@ -23,6 +23,11 @@ export function useLogin(opts?: {
       if ('mfaRequired' in res && res.mfaRequired && res.mfaToken) {
         opts?.onMfaRequired?.(res.mfaToken);
         return;
+      }
+      // Mobile: store tokens from response body (cookies not accessible in React Native)
+      const r = res as any;
+      if (r.accessToken && r.refreshToken) {
+        await storeTokens(r.accessToken, r.refreshToken);
       }
       const user = await api.get<AuthUser>('/auth/me');
       qc.setQueryData(['me'], user);

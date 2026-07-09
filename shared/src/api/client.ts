@@ -123,6 +123,10 @@ export function resetAxios() {
   _instance = createAxios();
 }
 
+export async function storeTokens(access: string, refresh: string) {
+  await _storage.setTokens(access, refresh);
+}
+
 export const api = {
   get:    <T>(path: string) => _instance.get<T>(path).then((r) => r.data),
   post:   <T>(path: string, body?: unknown) => _instance.post<T>(path, body).then((r) => r.data),

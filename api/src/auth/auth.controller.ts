@@ -107,7 +107,7 @@ export class AuthController {
     const result = await this.auth.login(dto);
     if ('mfaRequired' in result) return result; // retourne { mfaRequired, mfaToken }
     this.setCookies(res, result.accessToken, result.refreshToken);
-    return { message: 'Connexion réussie' };
+    return { message: 'Connexion réussie', accessToken: result.accessToken, refreshToken: result.refreshToken };
   }
 
   // ── MFA — vérification du second facteur ──────────────────────────────────
