@@ -19,3 +19,4 @@ export * from './hooks/useTables';
 export * from './hooks/useStats';
 export * from './hooks/useStaff';
 export * from './hooks/useRestaurantProfile';
+export * from './hooks/useHome';
