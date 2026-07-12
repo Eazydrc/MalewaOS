@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect } from "react";
+﻿import { useState, FormEvent, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
@@ -14,6 +14,7 @@ import { EditProfileModal } from "@/components/profile/EditProfileModal";
 import { ChangePasswordModal } from "@/components/profile/ChangePasswordModal";
 import { DAYS, DEFAULT_HOURS, OpeningHours } from "@/hooks/useMenu";
 import { useWalletSummary } from "@/hooks/useWallet";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -464,7 +465,7 @@ function RestaurantAccountPage() {
                 Se déconnecter
               </button>
 
-              <p className="text-center text-[11px] text-text-3">Elengi v1.0.0 · Made with ❤️ in Kinshasa</p>
+              <p className="text-center text-[11px] text-text-3">Delipose v1.0.0 · Made with ❤️ in Kinshasa</p>
             </div>
           )}
 
@@ -631,6 +632,15 @@ function ClientProfilePage() {
           </svg>
         </Link>
 
+        {/* Apparence */}
+        <section className="space-y-2">
+          <p className="section-label px-1">Apparence</p>
+          <div className="card p-4 space-y-3">
+            <p className="text-xs text-text-3 font-medium">Thème de l'interface</p>
+            <ThemeToggle expanded />
+          </div>
+        </section>
+
         {/* Sections */}
         {MENU_SECTIONS.map(section => (
           <section key={section.title} className="space-y-2">
@@ -662,7 +672,7 @@ function ClientProfilePage() {
           Se déconnecter
         </Button>
 
-        <p className="text-center text-[11px] text-text-3 font-medium pb-2">Elengi v1.0.0 · Made with ❤️ in Kinshasa</p>
+        <p className="text-center text-[11px] text-text-3 font-medium pb-2">Delipose v1.0.0 · Made with ❤️ in Kinshasa</p>
       </AppLayout>
 
       <EditProfileModal    open={editOpen}     onClose={() => setEditOpen(false)} />

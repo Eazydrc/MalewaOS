@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+﻿import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 
@@ -116,7 +116,7 @@ export default function RegisterDriverPage() {
         <div className="text-center space-y-2">
           <div className="text-5xl">🛵</div>
           <h1 className="text-2xl font-black text-text">Devenir livreur</h1>
-          <p className="text-sm text-text-2">Rejoignez la flotte Elengi</p>
+          <p className="text-sm text-text-2">Rejoignez la flotte Delipose</p>
         </div>
 
         {/* Avantages */}

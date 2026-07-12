@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+﻿import type { CSSProperties } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { usePublicOffers } from "@/hooks/useOffers";
@@ -272,7 +272,7 @@ export default function PublicMenuPage() {
       {/* ── Footer ── */}
       <div className="fixed bottom-0 left-0 right-0 bg-bg/90 backdrop-blur border-t border-border px-4 py-3">
         <p className="text-center text-xs text-text-3">
-          Propulsé par <span className="font-bold text-accent">Elengi</span> 🍽️
+          Propulsé par <span className="font-bold text-accent">Delipose</span> 🍽️
         </p>
       </div>
     </div>

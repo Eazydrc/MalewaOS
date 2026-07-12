@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+﻿import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuthStore } from "@/store/auth.store";
@@ -202,7 +202,7 @@ export default function HomePage() {
           <div>
             <p className="text-xs font-semibold text-text-3">{greeting} 👋</p>
             <p className="text-lg font-black leading-tight text-text">
-              {firstName ? firstName : 'Bienvenue sur Elengi'}
+              {firstName ? firstName : 'Bienvenue sur Delipose'}
             </p>
           </div>
           <button onClick={() => navigate('/profile')}

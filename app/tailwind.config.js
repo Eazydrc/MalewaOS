@@ -69,8 +69,9 @@ export default {
 
       backgroundImage: {
         "btn-primary":      "var(--btn-primary)",
-        "btn-accent":       "linear-gradient(0deg, #E85D26 0%, #E85D26 100%)",
+        "btn-accent":       "var(--btn-primary)",
         "surface-gradient": "var(--surface-gradient)",
+        "teal-gradient":    "var(--teal-gradient)",
       },
 
       screens: {

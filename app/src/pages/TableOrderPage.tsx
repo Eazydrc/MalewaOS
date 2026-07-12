@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
@@ -135,7 +135,7 @@ export default function TableOrderPage() {
         className="px-6 py-2.5 rounded-xl bg-accent text-white text-sm font-bold">
         Commander autre chose
       </button>
-      <p className="text-[11px] text-text-3">Propulsé par <span className="font-bold text-accent">Elengi</span></p>
+      <p className="text-[11px] text-text-3">Propulsé par <span className="font-bold text-accent">Delipose</span></p>
     </div>
   );
 
@@ -313,7 +313,7 @@ export default function TableOrderPage() {
 
       {/* ── Footer ── */}
       <p className="text-center text-xs text-text-3 mt-8">
-        Propulsé par <span className="font-bold text-accent">Elengi</span> 🍽️
+        Propulsé par <span className="font-bold text-accent">Delipose</span> 🍽️
       </p>
     </div>
   );

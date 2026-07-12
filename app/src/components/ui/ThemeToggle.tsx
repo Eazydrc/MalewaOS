@@ -1,17 +1,55 @@
-import { useTheme } from "@/lib/useTheme";
+import { useTheme, AppTheme } from "@/lib/useTheme";
 import { cn } from "@/lib/cn";
+
+const THEME_META: Record<AppTheme, { label: string; emoji: string; next: string }> = {
+  ocean:  { label: "Océan",  emoji: "🌊", next: "→ Abysse" },
+  abysse: { label: "Abysse", emoji: "🌑", next: "→ Aurore" },
+  aurore: { label: "Aurore", emoji: "🌅", next: "→ Océan"  },
+};
 
 interface ThemeToggleProps {
   className?: string;
+  /** Afficher les 3 chips au lieu du bouton cycle */
+  expanded?: boolean;
 }
 
-export function ThemeToggle({ className }: ThemeToggleProps) {
-  const { isDark, toggle } = useTheme();
+export function ThemeToggle({ className, expanded = false }: ThemeToggleProps) {
+  const { theme, set, cycle } = useTheme();
+  const meta = THEME_META[theme];
+
+  if (expanded) {
+    return (
+      <div className={cn("flex gap-1.5", className)}>
+        {(Object.keys(THEME_META) as AppTheme[]).map((key) => {
+          const t = THEME_META[key];
+          const active = theme === key;
+          return (
+            <button
+              key={key}
+              onClick={() => set(key)}
+              title={t.label}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold no-tap",
+                "border transition-all duration-150",
+                active
+                  ? "bg-accent/15 border-accent/40 text-accent"
+                  : "bg-surface-2 border-border text-text-3 hover:border-border-strong hover:text-text-2",
+              )}
+            >
+              <span className="text-sm leading-none">{t.emoji}</span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <button
-      onClick={toggle}
-      aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+      onClick={cycle}
+      aria-label={`Thème actuel : ${meta.label} — cliquer pour ${meta.next}`}
+      title={`${meta.label} · clic → ${meta.next}`}
       className={cn(
         "relative inline-flex items-center justify-center w-9 h-9 rounded-xl no-tap",
         "bg-surface-2 border border-border text-text-2",
@@ -20,18 +58,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         className,
       )}
     >
-      {isDark ? (
-        /* Soleil */
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="5"/>
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-        </svg>
-      ) : (
-        /* Lune */
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-      )}
+      <span className="text-base leading-none select-none">{meta.emoji}</span>
     </button>
   );
 }

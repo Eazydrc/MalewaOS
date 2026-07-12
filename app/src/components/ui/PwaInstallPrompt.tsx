@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -46,7 +46,7 @@ export function PwaInstallPrompt() {
           E
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-text">Installer Elengi</p>
+          <p className="text-sm font-bold text-text">Installer Delipose</p>
           <p className="text-xs text-text-3 mt-0.5">
             Installez l'app pour un accès rapide depuis votre bureau
           </p>
