@@ -77,7 +77,6 @@ export default function ReservationsScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
-      <FadeSlide>
       <Text style={s.title}>Mes réservations</Text>
 
       <View style={s.tabs}>
@@ -116,27 +115,28 @@ export default function ReservationsScreen() {
 
       {/* Cancel confirmation modal */}
       <Modal visible={!!cancelTarget} transparent animationType="fade" onRequestClose={() => setCancelTarget(null)}>
-        <Pressable style={s.backdrop} onPress={() => setCancelTarget(null)} />
-        <View style={s.modalWrap}>
-          <View style={s.modal}>
-            <Text style={{ fontSize: 36, marginBottom: 4 }}>⚠️</Text>
-            <Text style={s.modalTitle}>Annuler la réservation ?</Text>
-            <Text style={s.modalSub}>Cette action est irréversible. Le restaurant sera notifié.</Text>
-            <View style={s.modalBtns}>
-              <TouchableOpacity style={s.keepBtn} onPress={() => setCancelTarget(null)}>
-                <Text style={s.keepText}>Garder</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.confirmCancelBtn, cancel.isPending && { opacity: 0.6 }]}
-                onPress={confirmCancel}
-                disabled={cancel.isPending}
-              >
-                <Text style={s.confirmCancelText}>{cancel.isPending ? 'Annulation…' : 'Annuler'}</Text>
-              </TouchableOpacity>
+        <FadeSlide>
+          <Pressable style={s.backdrop} onPress={() => setCancelTarget(null)} />
+          <View style={s.modalWrap}>
+            <View style={s.modal}>
+              <Text style={{ fontSize: 36, marginBottom: 4 }}>⚠️</Text>
+              <Text style={s.modalTitle}>Annuler la réservation ?</Text>
+              <Text style={s.modalSub}>Cette action est irréversible. Le restaurant sera notifié.</Text>
+              <View style={s.modalBtns}>
+                <TouchableOpacity style={s.keepBtn} onPress={() => setCancelTarget(null)}>
+                  <Text style={s.keepText}>Garder</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.confirmCancelBtn, cancel.isPending && { opacity: 0.6 }]}
+                  onPress={confirmCancel}
+                  disabled={cancel.isPending}
+                >
+                  <Text style={s.confirmCancelText}>{cancel.isPending ? 'Annulation…' : 'Annuler'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </FadeSlide>
+        </FadeSlide>
       </Modal>
     </SafeAreaView>
   );
