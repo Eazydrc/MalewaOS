@@ -1,4 +1,4 @@
-import { useRef, useState, KeyboardEvent, ChangeEvent, useEffect } from "react";
+﻿import { useRef, useState, KeyboardEvent, ChangeEvent, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
@@ -63,7 +63,7 @@ export default function MfaPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <a href="/" className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white">
-            Elen<span className="text-orange-500">gi</span>
+            Deli<span className="text-accent">pose</span>
           </a>
 
           <div className="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mt-6 mb-4">

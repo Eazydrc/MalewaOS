@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -92,7 +92,7 @@ export default function UIKitPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black tracking-tighter text-text">Elen<span className="text-gradient-accent">gi</span> — UI Kit</h1>
+            <h1 className="text-2xl font-black tracking-tighter text-text">Deli<span className="text-gradient-accent">pose</span> — UI Kit</h1>
             <p className="text-text-3 text-sm mt-0.5 font-medium">Design System · Mode clair &amp; sombre</p>
           </div>
           <ThemeToggle />

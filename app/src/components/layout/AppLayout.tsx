@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+﻿import { ReactNode } from "react";
 import { BottomNav } from "./BottomNav";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -77,7 +77,7 @@ export function AppLayout({ children, title, showBack = false, headerRight, noPa
           ) : (
             <a href="/home" className="shrink-0">
               <span className="text-xl font-black tracking-tighter text-text">
-                Elen<span className="text-gradient-accent">gi</span>
+                Deli<span className="text-gradient-accent">pose</span>
               </span>
             </a>
           )}

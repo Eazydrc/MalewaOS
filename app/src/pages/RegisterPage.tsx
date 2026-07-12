@@ -1,4 +1,4 @@
-import { useState, ChangeEvent, FormEvent } from "react";
+﻿import { useState, ChangeEvent, FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { useRegister } from "@/hooks/useAuth";
@@ -82,7 +82,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
             <span className="text-3xl font-black tracking-tighter text-text">
-              Elen<span className="text-gradient-accent">gi</span>
+              Deli<span className="text-gradient-accent">pose</span>
             </span>
           </Link>
           <p className="text-text-3 text-sm mt-2 font-medium">Créer votre compte</p>

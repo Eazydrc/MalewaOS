@@ -353,7 +353,7 @@ function RestaurantAccountPage() {
           <div className="px-4 h-14 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-base font-black tracking-tighter text-text">
-                Elen<span className="text-accent">gi</span>
+                Deli<span className="text-accent">pose</span>
                 <span className="ml-2 text-xs font-bold text-text-3">Mon compte</span>
               </p>
             </div>

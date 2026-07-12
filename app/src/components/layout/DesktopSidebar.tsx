@@ -109,9 +109,9 @@ export function DesktopSidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-border shrink-0">
         <Link to="/home" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white font-black text-sm">E</div>
+          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white font-black text-sm">D</div>
           <span className="text-lg font-black tracking-tight text-text">
-            Elen<span className="text-accent">gi</span>
+            Deli<span className="text-accent">pose</span>
           </span>
         </Link>
       </div>

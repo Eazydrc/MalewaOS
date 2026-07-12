@@ -1,4 +1,4 @@
-export default function ForgotPasswordPage() {
+﻿export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm animate-slide-up">
@@ -6,7 +6,7 @@ export default function ForgotPasswordPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <a href="/" className="text-2xl font-bold text-text tracking-tight">
-            Elen<span className="text-accent">gi</span>
+            Deli<span className="text-accent">pose</span>
           </a>
           <div className="w-12 h-12 bg-accent-soft rounded-2xl flex items-center justify-center mx-auto mt-6 mb-4">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E85D26" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

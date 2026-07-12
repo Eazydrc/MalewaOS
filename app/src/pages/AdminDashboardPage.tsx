@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
 import { Badge } from "@/components/ui/Badge";
@@ -595,7 +595,7 @@ export default function AdminDashboardPage() {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-lg font-black tracking-tighter text-text">Elen<span className="text-accent">gi</span></span>
+            <span className="text-lg font-black tracking-tighter text-text">Deli<span className="text-accent">pose</span></span>
             <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Admin</span>
           </div>
         </div>

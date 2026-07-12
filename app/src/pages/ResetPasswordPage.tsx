@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 export default function ResetPasswordPage() {
   const [show, setShow] = useState({ pwd: false, confirm: false });
@@ -10,7 +10,7 @@ export default function ResetPasswordPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <a href="/" className="text-2xl font-bold text-text tracking-tight">
-            Elen<span className="text-accent">gi</span>
+            Deli<span className="text-accent">pose</span>
           </a>
           <div className="w-12 h-12 bg-success-soft rounded-2xl flex items-center justify-center mx-auto mt-6 mb-4">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
