@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, Animated, Text } from 'react-native';
 import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useAuthStore } from '../store/auth.store';
 import Icon from '../components/Icon';
 
@@ -60,8 +61,10 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 // ── Tabs CLIENT ───────────────────────────────────────────────────────────────
 
 function ClientTabs() {
+  const { colors: c } = useTheme();
+  const tabOpts = makeTabOptions(c);
   return (
-    <Tab.Navigator screenOptions={tabOptions}>
+    <Tab.Navigator screenOptions={tabOpts}>
       <Tab.Screen name="home"         component={HomeScreen}         options={{ title: 'Accueil',      tabBarIcon: ({ focused }) => <TabIcon name="home-outline" focused={focused} /> }} />
       <Tab.Screen name="search"       component={SearchScreen}       options={{ title: 'Recherche',    tabBarIcon: ({ focused }) => <TabIcon name="search-outline" focused={focused} /> }} />
       <Tab.Screen name="reservations" component={ReservationsScreen} options={{ title: 'Réservations', tabBarIcon: ({ focused }) => <TabIcon name="calendar-outline" focused={focused} /> }} />
@@ -74,8 +77,10 @@ function ClientTabs() {
 // ── Tabs LIVREUR ──────────────────────────────────────────────────────────────
 
 function DriverTabs() {
+  const { colors: c } = useTheme();
+  const tabOpts = makeTabOptions(c);
   return (
-    <Tab.Navigator screenOptions={tabOptions}>
+    <Tab.Navigator screenOptions={tabOpts}>
       <Tab.Screen name="driver"  component={DriverScreen}  options={{ title: 'Livraisons', tabBarIcon: ({ focused }) => <TabIcon name="bicycle-outline" focused={focused} /> }} />
       <Tab.Screen name="profile" component={ProfileScreen} options={{ title: 'Profil',     tabBarIcon: ({ focused }) => <TabIcon name="person-outline" focused={focused} /> }} />
     </Tab.Navigator>
@@ -85,8 +90,10 @@ function DriverTabs() {
 // ── Tabs RESTAURANT ───────────────────────────────────────────────────────────
 
 function RestaurantTabs() {
+  const { colors: c } = useTheme();
+  const tabOpts = makeTabOptions(c);
   return (
-    <Tab.Navigator screenOptions={tabOptions}>
+    <Tab.Navigator screenOptions={tabOpts}>
       <Tab.Screen name="dashboard"  component={DashboardScreen}  options={{ title: 'Dashboard',    tabBarIcon: ({ focused }) => <TabIcon name="speedometer-outline" focused={focused} /> }} />
       <Tab.Screen name="menu"       component={MenuScreen}       options={{ title: 'Menu',          tabBarIcon: ({ focused }) => <TabIcon name="restaurant-outline" focused={focused} /> }} />
       <Tab.Screen name="offers"     component={OffersScreen}     options={{ title: 'Offres',        tabBarIcon: ({ focused }) => <TabIcon name="pricetag-outline" focused={focused} /> }} />
@@ -104,8 +111,10 @@ function RestaurantTabs() {
 // ── Tabs ADMIN ────────────────────────────────────────────────────────────────
 
 function AdminTabs() {
+  const { colors: c } = useTheme();
+  const tabOpts = makeTabOptions(c);
   return (
-    <Tab.Navigator screenOptions={tabOptions}>
+    <Tab.Navigator screenOptions={tabOpts}>
       <Tab.Screen name="admin"   component={AdminScreen}   options={{ title: 'Admin',  tabBarIcon: ({ focused }) => <TabIcon name="shield-outline" focused={focused} /> }} />
       <Tab.Screen name="profile" component={ProfileScreen} options={{ title: 'Profil', tabBarIcon: ({ focused }) => <TabIcon name="person-outline" focused={focused} /> }} />
     </Tab.Navigator>
@@ -208,19 +217,21 @@ export default function AppNavigator() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const tabOptions = {
-  headerShown: false,
-  tabBarStyle: {
-    backgroundColor: colors.surface,
-    borderTopColor:  colors.border,
-    borderTopWidth:  1,
-    height: 64,
-    paddingBottom: 8,
-  },
-  tabBarActiveTintColor:   colors.accent,
-  tabBarInactiveTintColor: colors.text3,
-  tabBarLabelStyle: { fontSize: 10, fontWeight: '600' as const },
-};
+function makeTabOptions(c: typeof colors) {
+  return {
+    headerShown: false,
+    tabBarStyle: {
+      backgroundColor: c.surface,
+      borderTopColor:  c.border,
+      borderTopWidth:  1,
+      height: 64,
+      paddingBottom: 8,
+    },
+    tabBarActiveTintColor:   c.accent,
+    tabBarInactiveTintColor: c.text3,
+    tabBarLabelStyle: { fontSize: 10, fontWeight: '600' as const },
+  };
+}
 
 const styles = StyleSheet.create({
   splash: {
@@ -230,8 +241,8 @@ const styles = StyleSheet.create({
   splashLogoWrap: { alignItems: 'center', gap: 14 },
   splashIconBg: {
     width: 88, height: 88, borderRadius: 26,
-    backgroundColor: 'rgba(232,93,38,0.15)',
-    borderWidth: 1.5, borderColor: 'rgba(232,93,38,0.3)',
+    backgroundColor: 'rgba(46,196,182,0.15)',
+    borderWidth: 1.5, borderColor: 'rgba(46,196,182,0.35)',
     justifyContent: 'center', alignItems: 'center',
   },
   splashIconText: { fontSize: 40 },
@@ -245,7 +256,7 @@ const styles = StyleSheet.create({
   dotsRow: { flexDirection: 'row', gap: 8, marginTop: 32 },
   dot: {
     width: 8, height: 8, borderRadius: 4,
-    backgroundColor: colors.accent,
+    backgroundColor: '#2EC4B6',
   },
   tabIconWrap: {
     alignItems: 'center', paddingTop: 4,
@@ -253,7 +264,7 @@ const styles = StyleSheet.create({
   tabIndicator: {
     position: 'absolute', top: -4,
     width: 24, height: 2,
-    backgroundColor: colors.accent,
+    backgroundColor: '#2EC4B6',
     borderRadius: 2,
   },
 });

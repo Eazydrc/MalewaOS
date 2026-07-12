@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'rea
 import { FadeSlide } from '../../components/animations';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
-import { colors, spacing, radius, shadow } from '../../theme/colors';
+import { colors, spacing, radius, shadow, useTheme } from '../../theme/colors';
+import { THEME_LABELS, ThemeKey } from '../../theme/themes';
 import { useLogout, useWallet } from '@elengi/shared';
 import { useAuthStore } from '../../store/auth.store';
 
@@ -41,6 +42,7 @@ function MenuRow({ icon, label, value, onPress, danger }: {
 export default function ProfileScreen({ navigation }: any) {
   const { user, clear } = useAuthStore();
   const { data: wallet } = useWallet();
+  const { themeKey, setTheme } = useTheme();
   const logout = useLogout({ onSuccess: () => clear() });
 
   const points = wallet?.points ?? user?.points ?? 0;
@@ -123,6 +125,27 @@ export default function ProfileScreen({ navigation }: any) {
           <MenuRow icon="⭐" label="Wallet & points" onPress={() => navigation?.navigate('Wallet')} />
         </View>
 
+        {/* Thème */}
+        <Text style={s.sectionTitle}>Apparence</Text>
+        <View style={s.themeRow}>
+          {(Object.keys(THEME_LABELS) as ThemeKey[]).map((key) => {
+            const t = THEME_LABELS[key];
+            const active = themeKey === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[s.themeChip, active && s.themeChipActive]}
+                onPress={() => setTheme(key)}
+                activeOpacity={0.75}
+              >
+                <Text style={s.themeEmoji}>{t.emoji}</Text>
+                <Text style={[s.themeLabel, active && s.themeLabelActive]}>{t.label}</Text>
+                {active && <View style={s.themeActiveDot} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={s.logoutText}>Se déconnecter</Text>
@@ -166,6 +189,23 @@ const s = StyleSheet.create({
   menuLabel:     { fontSize: 15, color: colors.text, fontWeight: '600' },
   menuValue:     { fontSize: 12, color: colors.text3, marginTop: 1 },
   divider:       { height: 1, backgroundColor: colors.border, marginLeft: spacing.lg + 24 + spacing.md },
+  themeRow:      { flexDirection: 'row', gap: spacing.sm },
+  themeChip:     {
+    flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 6,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: 1.5, borderColor: colors.border, gap: 6,
+  },
+  themeChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  themeEmoji:    { fontSize: 22 },
+  themeLabel:    { fontSize: 11, fontWeight: '700', color: colors.text3, textAlign: 'center' },
+  themeLabelActive: { color: colors.accent },
+  themeActiveDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
   logoutBtn:     {
     backgroundColor: 'rgba(248,113,113,0.1)', borderRadius: radius.md,
     padding: spacing.md, alignItems: 'center', marginTop: spacing.sm,

@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'react-native';
 import AppNavigator from './src/navigation';
 import { useAuthStore } from './src/store/auth.store';
-import { colors } from './src/theme/colors';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,18 +15,28 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const fetchMe = useAuthStore((s) => s.fetchMe);
+  const { colors, themeKey } = useTheme();
   useEffect(() => { fetchMe(); }, []);
-  return <AppNavigator />;
+  return (
+    <>
+      <StatusBar
+        barStyle={themeKey === 'AURORE' ? 'dark-content' : 'light-content'}
+        backgroundColor={colors.bg}
+      />
+      <AppNavigator />
+    </>
+  );
 }
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-          <AppContent />
-        </QueryClientProvider>
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <AppContent />
+          </QueryClientProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

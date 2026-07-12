@@ -1,20 +1,11 @@
-export const colors = {
-  bg:         '#0D0E1E',
-  surface:    '#14172A',
-  surface2:   '#1C2038',
-  surface3:   '#262C4A',
-  accent:     '#E85D26',
-  accentSoft: 'rgba(232,93,38,0.15)',
-  text:       '#F0F2FF',
-  text2:      '#A8B0D8',
-  text3:      '#6B75A8',
-  border:     '#323A5C',
-  success:    '#4ADE80',
-  danger:     '#F87171',
-  warning:    '#FBBF24',
-  white:      '#FFFFFF',
-  black:      '#000000',
-} as const;
+/**
+ * Export statique du thème OCEAN (défaut).
+ * Les écrans qui n'utilisent pas useTheme() reçoivent toujours le thème principal.
+ * Pour le changement de thème dynamique : import { useTheme } from './ThemeContext'
+ */
+import { OCEAN } from './themes';
+
+export const colors = OCEAN;
 
 export const spacing = {
   xs:  4,
@@ -37,8 +28,19 @@ export const shadow = {
   card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  strong: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 14,
   },
 } as const;
+
+// Re-exports for screens that use useTheme()
+export type { ColorPalette, ThemeKey } from './themes';
+export { useTheme } from './ThemeContext';
