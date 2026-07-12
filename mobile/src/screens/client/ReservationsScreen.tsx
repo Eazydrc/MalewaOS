@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   RefreshControl, Modal, Pressable,
 } from 'react-native';
+import { FadeSlide } from '../../components/animations';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadow } from '../../theme/colors';
 import { useMyReservations, useCancelReservation } from '@elengi/shared';
@@ -76,6 +77,7 @@ export default function ReservationsScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <FadeSlide>
       <Text style={s.title}>Mes réservations</Text>
 
       <View style={s.tabs}>
@@ -134,6 +136,7 @@ export default function ReservationsScreen() {
             </View>
           </View>
         </View>
+      </FadeSlide>
       </Modal>
     </SafeAreaView>
   );

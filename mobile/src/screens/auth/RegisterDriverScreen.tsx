@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Alert,
@@ -58,7 +58,7 @@ export default function RegisterDriverScreen({ navigation }: any) {
           <View style={s.header}>
             <Text style={s.emoji}>🛵</Text>
             <Text style={s.logo}>Espace Livreur</Text>
-            <Text style={s.sub}>Rejoignez le réseau de livraison Elengi</Text>
+            <Text style={s.sub}>Rejoignez le réseau de livraison Delipose</Text>
           </View>
 
           <View style={s.card}>

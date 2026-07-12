@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { FadeSlide } from '../../components/animations';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, radius, shadow } from '../../theme/colors';
 import { useMyOrders } from '@elengi/shared';
@@ -114,6 +115,7 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <FadeSlide>
       <Text style={s.title}>Mes commandes</Text>
       <FlatList
         data={allSections}
@@ -137,6 +139,7 @@ export default function OrdersScreen() {
           ) : null
         }
       />
+      </FadeSlide>
     </SafeAreaView>
   );
 }

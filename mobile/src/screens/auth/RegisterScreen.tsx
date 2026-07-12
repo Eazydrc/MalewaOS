@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Linking, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, Linking, Alert, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Line, Polyline } from 'react-native-svg';
@@ -68,6 +68,15 @@ export default function RegisterScreen({ navigation }: any) {
   const [showPwd,     setShowPwd]     = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim   = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.stagger(100, [
+      Animated.spring(headerAnim, { toValue: 1, tension: 70, friction: 10, useNativeDriver: true }),
+      Animated.spring(cardAnim,   { toValue: 1, tension: 70, friction: 10, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
   const register   = useRegister({ onSuccess: (email) => navigation.navigate('VerifyEmail', { email }) });
   const strength   = getStrength(password);
   const match      = confirm.length > 0 && password === confirm;
@@ -91,15 +100,21 @@ export default function RegisterScreen({ navigation }: any) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
 
-          <View style={s.header}>
-            <Text style={s.logo}>Elen<Text style={{ color: colors.accent }}>gi</Text></Text>
+          <Animated.View style={[s.header, {
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+          }]}>
+            <Text style={s.logo}>Deli<Text style={{ color: colors.accent }}>pose</Text></Text>
             <Text style={s.sub}>Créer votre compte</Text>
             <View style={s.pill}>
               <Text style={s.pillText}>🎁 +100 points offerts à l'inscription</Text>
             </View>
-          </View>
+          </Animated.View>
 
-          <View style={s.card}>
+          <Animated.View style={[s.card, {
+            opacity: cardAnim,
+            transform: [{ translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
+          }]}>
 
             <TouchableOpacity style={s.googleBtn} onPress={handleGoogle} activeOpacity={0.8}>
               <GoogleIcon />
@@ -232,7 +247,7 @@ export default function RegisterScreen({ navigation }: any) {
               {' '}et notre{' '}
               <Text style={s.cguLink}>Politique de confidentialité</Text>.
             </Text>
-          </View>
+          </Animated.View>
 
           <TouchableOpacity style={s.footer} onPress={() => navigation.navigate('Login')}>
             <Text style={s.footerText}>

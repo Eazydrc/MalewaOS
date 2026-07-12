@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { View, StyleSheet, Animated, Text } from 'react-native';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/auth.store';
 import Icon from '../components/Icon';
@@ -112,18 +112,66 @@ function AdminTabs() {
   );
 }
 
+// ── Splash animé ─────────────────────────────────────────────────────────────
+
+function SplashScreen() {
+  const logoScale   = useRef(new Animated.Value(0.6)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const tagOpacity  = useRef(new Animated.Value(0)).current;
+  const dot1Scale   = useRef(new Animated.Value(0)).current;
+  const dot2Scale   = useRef(new Animated.Value(0)).current;
+  const dot3Scale   = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      // Logo bounce-in
+      Animated.parallel([
+        Animated.spring(logoScale, { toValue: 1, tension: 70, friction: 8, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]),
+      // Tagline fade in
+      Animated.timing(tagOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      // Loading dots
+      Animated.stagger(120, [
+        Animated.spring(dot1Scale, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+        Animated.spring(dot2Scale, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+        Animated.spring(dot3Scale, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, []);
+
+  return (
+    <View style={styles.splash}>
+      {/* Logo */}
+      <Animated.View style={[styles.splashLogoWrap, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
+        <View style={styles.splashIconBg}>
+          <Text style={styles.splashIconText}>🍽️</Text>
+        </View>
+        <Text style={styles.splashName}>Delipose</Text>
+      </Animated.View>
+
+      {/* Tagline */}
+      <Animated.Text style={[styles.splashTag, { opacity: tagOpacity }]}>
+        Kinshasa mange bien
+      </Animated.Text>
+
+      {/* Loading dots */}
+      <View style={styles.dotsRow}>
+        {[dot1Scale, dot2Scale, dot3Scale].map((scale, i) => (
+          <Animated.View key={i} style={[styles.dot, { transform: [{ scale }] }]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ── Root Navigator ────────────────────────────────────────────────────────────
 
 export default function AppNavigator() {
   const { user, hasChecked, isLoading } = useAuthStore();
 
   if (!hasChecked || isLoading) {
-    return (
-      <View style={styles.loader}>
-        <Text style={{ color: colors.accent, fontSize: 28, fontWeight: 'bold', marginBottom: 16 }}>Elengi</Text>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   return (
@@ -175,9 +223,29 @@ const tabOptions = {
 };
 
 const styles = StyleSheet.create({
-  loader: {
+  splash: {
     flex: 1, backgroundColor: colors.bg,
+    justifyContent: 'center', alignItems: 'center', gap: 12,
+  },
+  splashLogoWrap: { alignItems: 'center', gap: 14 },
+  splashIconBg: {
+    width: 88, height: 88, borderRadius: 26,
+    backgroundColor: 'rgba(232,93,38,0.15)',
+    borderWidth: 1.5, borderColor: 'rgba(232,93,38,0.3)',
     justifyContent: 'center', alignItems: 'center',
+  },
+  splashIconText: { fontSize: 40 },
+  splashName: {
+    fontSize: 36, fontWeight: '900', color: colors.text,
+    letterSpacing: -1,
+  },
+  splashTag: {
+    fontSize: 14, color: colors.text3, fontWeight: '500', letterSpacing: 0.3,
+  },
+  dotsRow: { flexDirection: 'row', gap: 8, marginTop: 32 },
+  dot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: colors.accent,
   },
   tabIconWrap: {
     alignItems: 'center', paddingTop: 4,

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Image,
   ScrollView, FlatList, RefreshControl, Dimensions,
@@ -270,6 +270,11 @@ export default function HomeScreen({ navigation }: any) {
   const { data: user }                      = useMe();
   const { data: feed, isLoading, refetch }  = useHomeFeed();
 
+  const bodyAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(bodyAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true, delay: 120 } as any).start();
+  }, []);
+
   const hour      = new Date().getHours();
   const greeting  = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
   const firstName = user?.firstName ?? '';
@@ -292,7 +297,7 @@ export default function HomeScreen({ navigation }: any) {
             <View>
               <Text style={s.greetingText}>{greeting} 👋</Text>
               <Text style={s.headerName}>
-                {firstName ? firstName : 'Bienvenue sur Elengi'}
+                {firstName ? firstName : 'Bienvenue sur Delipose'}
               </Text>
             </View>
             <TouchableOpacity
@@ -321,7 +326,10 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* ── BODY ──────────────────────────────────────────────────────────── */}
-        <View style={s.body}>
+        <Animated.View style={[s.body, {
+          opacity: bodyAnim,
+          transform: [{ translateY: bodyAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+        }]}>
 
           {/* Points fidélité */}
           {user && (
@@ -512,7 +520,7 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           )}
 
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

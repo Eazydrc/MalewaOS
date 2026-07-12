@@ -4,8 +4,8 @@ import { configureApi, resetAxios, api } from '@elengi/shared';
 import { AuthUser } from '@elengi/shared';
 import { API_URL } from '../config';
 
-const TOKEN_ACCESS  = 'elengi_access';
-const TOKEN_REFRESH = 'elengi_refresh';
+const TOKEN_ACCESS  = 'delipose_access';
+const TOKEN_REFRESH = 'delipose_refresh';
 
 // Configuration du client API avec AsyncStorage pour le mobile
 configureApi({

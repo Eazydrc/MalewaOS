@@ -1,5 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { FadeSlide } from '../../components/animations';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { colors, spacing, radius, shadow } from '../../theme/colors';
@@ -58,6 +59,7 @@ export default function ProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={s.safe}>
+      <FadeSlide>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.container}>
         <Text style={s.title}>Mon profil</Text>
 
@@ -126,8 +128,9 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={s.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
 
-        <Text style={s.version}>Elengi v1.0 · Kinshasa, RDC</Text>
+        <Text style={s.version}>Delipose v1.0 · Kinshasa, RDC</Text>
       </ScrollView>
+      </FadeSlide>
     </SafeAreaView>
   );
 }

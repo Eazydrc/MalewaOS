@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Pressable,
 } from 'react-native';
+import { FadeSlide } from '../../components/animations';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Polygon } from 'react-native-svg';
 import { colors, spacing, radius, shadow } from '../../theme/colors';
@@ -108,6 +109,7 @@ export default function WalletScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
+      <FadeSlide delay={60}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.container}>
         {/* Points card */}
         <View style={s.pointsCard}>
@@ -221,6 +223,7 @@ export default function WalletScreen({ navigation }: any) {
           </View>
         )}
       </ScrollView>
+      </FadeSlide>
 
       {showRedeem && (
         <RedeemModal

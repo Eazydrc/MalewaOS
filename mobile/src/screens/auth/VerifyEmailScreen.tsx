@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
 } from 'react-native';
@@ -68,7 +68,7 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
         <View style={s.center}>
           <Text style={s.successIcon}>✓</Text>
           <Text style={s.successTitle}>Email vérifié !</Text>
-          <Text style={s.successDesc}>Votre compte est actif. Bienvenue sur Elengi !</Text>
+          <Text style={s.successDesc}>Votre compte est actif. Bienvenue sur Delipose !</Text>
         </View>
       </SafeAreaView>
     );
