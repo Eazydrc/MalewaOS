@@ -24,6 +24,7 @@ import RestaurantScreen   from '../screens/client/RestaurantScreen';
 import ReservationsScreen from '../screens/client/ReservationsScreen';
 import OrdersScreen       from '../screens/client/OrdersScreen';
 import ProfileScreen      from '../screens/client/ProfileScreen';
+import WalletScreen       from '../screens/client/WalletScreen';
 
 // Driver
 import DriverScreen       from '../screens/driver/DriverScreen';
@@ -149,6 +150,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="ClientTabs" component={ClientTabs} />
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
+            <Stack.Screen name="Wallet"     component={WalletScreen} />
           </>
         )}
       </Stack.Navigator>
