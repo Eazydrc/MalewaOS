@@ -8,8 +8,14 @@ import { useAuthStore } from '../store/auth.store';
 import Icon from '../components/Icon';
 
 // Auth
-import LoginScreen        from '../screens/auth/LoginScreen';
-import RegisterScreen     from '../screens/auth/RegisterScreen';
+import LoginScreen            from '../screens/auth/LoginScreen';
+import RegisterScreen         from '../screens/auth/RegisterScreen';
+import RegisterDriverScreen   from '../screens/auth/RegisterDriverScreen';
+import ForgotPasswordScreen   from '../screens/auth/ForgotPasswordScreen';
+import VerifyOtpScreen        from '../screens/auth/VerifyOtpScreen';
+import ResetPasswordScreen    from '../screens/auth/ResetPasswordScreen';
+import VerifyEmailScreen      from '../screens/auth/VerifyEmailScreen';
+import MfaScreen              from '../screens/auth/MfaScreen';
 
 // Client
 import HomeScreen         from '../screens/client/HomeScreen';
@@ -124,8 +130,14 @@ export default function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           <>
-            <Stack.Screen name="Login"    component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="Login"          component={LoginScreen} />
+            <Stack.Screen name="Register"       component={RegisterScreen} />
+            <Stack.Screen name="RegisterDriver" component={RegisterDriverScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="VerifyOtp"      component={VerifyOtpScreen} />
+            <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
+            <Stack.Screen name="VerifyEmail"    component={VerifyEmailScreen} />
+            <Stack.Screen name="Mfa"            component={MfaScreen} />
           </>
         ) : user.role === 'LIVREUR' ? (
           <Stack.Screen name="DriverTabs"     component={DriverTabs} />

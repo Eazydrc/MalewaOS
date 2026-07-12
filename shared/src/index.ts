@@ -2,7 +2,7 @@
 export * from './types';
 
 // API client
-export { api, configureApi, webTokenStorage, resetAxios } from './api/client';
+export { api, configureApi, webTokenStorage, resetAxios, storeTokens } from './api/client';
 export type { TokenStorage } from './api/client';
 
 // Hooks
