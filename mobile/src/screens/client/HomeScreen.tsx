@@ -1,54 +1,63 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Image,
   ScrollView, FlatList, RefreshControl, Dimensions,
   StatusBar, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Circle } from 'react-native-svg';
-import { colors, spacing, radius, shadow } from '../../theme/colors';
+import Svg, { Path, Circle, Line, Polyline } from 'react-native-svg';
+import { useTheme, spacing, radius, shadow } from '../../theme/colors';
 import { useMe, useHomeFeed } from '@elengi/shared';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
 
 const USD_TO_CDF = 2800;
-function formatPrice(cents: number) {
+function fmtPrice(cents: number) {
   const cdf = Math.round((cents / 100) * USD_TO_CDF);
   return new Intl.NumberFormat('fr-CD', { style: 'decimal', maximumFractionDigits: 0 }).format(cdf) + ' FC';
 }
 
-// ── Icônes ────────────────────────────────────────────────────────────────────
+// ── Icônes inline SVG ────────────────────────────────────────────────────────
 
-function SearchIcon() {
+function IcoSearch({ color }: { color: string }) {
   return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.text3} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx={11} cy={11} r={8}/>
-      <Path d="m21 21-4.35-4.35"/>
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx={11} cy={11} r={8} /><Path d="m21 21-4.35-4.35" />
     </Svg>
   );
 }
-
-function ChevronRightIcon() {
+function IcoPin({ color }: { color: string }) {
   return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="m9 18 6-6-6-6"/>
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><Circle cx={12} cy={10} r={3} />
     </Svg>
   );
 }
-
-function StarIcon() {
+function IcoChevronDown({ color }: { color: string }) {
   return (
-    <Svg width={11} height={11} viewBox="0 0 24 24" fill={colors.warning} stroke={colors.warning} strokeWidth={1}>
-      <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <Polyline points="6 9 12 15 18 9" />
     </Svg>
   );
 }
-
-function MapPinIcon() {
+function IcoStar({ color }: { color: string }) {
   return (
-    <Svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={colors.text3} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-      <Circle cx={12} cy={10} r={3}/>
+    <Svg width={12} height={12} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth={1}>
+      <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </Svg>
+  );
+}
+function IcoClock({ color }: { color: string }) {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round">
+      <Circle cx={12} cy={12} r={10} /><Path d="M12 6v6l4 2" />
+    </Svg>
+  );
+}
+function IcoChevronRight({ color }: { color: string }) {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="m9 18 6-6-6-6" />
     </Svg>
   );
 }
@@ -56,6 +65,7 @@ function MapPinIcon() {
 // ── Catégories ────────────────────────────────────────────────────────────────
 
 const CATS = [
+  { label: 'Tout',      emoji: '🍽️', q: '' },
   { label: 'Congolais', emoji: '🍲', q: 'congolais' },
   { label: 'Poulet',    emoji: '🍗', q: 'poulet' },
   { label: 'Pizza',     emoji: '🍕', q: 'pizza' },
@@ -66,456 +76,330 @@ const CATS = [
   { label: 'Livraison', emoji: '🛵', q: 'livraison' },
 ];
 
-// ── Carrousel auto-boucle ─────────────────────────────────────────────────────
+// ── Skeleton ─────────────────────────────────────────────────────────────────
 
-function AutoCarousel({ items, navigation }: { items: any[]; navigation: any }) {
-  const [idx, setIdx]   = useState(0);
-  const timer           = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollRef       = useRef<ScrollView>(null);
-
-  const scrollTo = useCallback((i: number) => {
-    scrollRef.current?.scrollTo({ x: i * (SCREEN_W - spacing.lg * 2), animated: true });
-    setIdx(i);
-  }, []);
-
-  const resetTimer = useCallback(() => {
-    if (timer.current) clearInterval(timer.current);
-    if (items.length > 1) {
-      timer.current = setInterval(() => {
-        setIdx(cur => {
-          const next = (cur + 1) % items.length;
-          scrollRef.current?.scrollTo({ x: next * (SCREEN_W - spacing.lg * 2), animated: true });
-          return next;
-        });
-      }, 4000);
-    }
-  }, [items.length]);
-
+function Skeleton({ style }: { style?: any }) {
+  const { colors: c } = useTheme();
+  const anim = useRef(new Animated.Value(0.45)).current;
   useEffect(() => {
-    resetTimer();
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, [resetTimer]);
-
-  if (!items.length) return null;
-
-  const slideW = SCREEN_W - spacing.lg * 2;
-
-  return (
-    <View>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={e => {
-          const i = Math.round(e.nativeEvent.contentOffset.x / slideW);
-          setIdx(i);
-          resetTimer();
-        }}
-        style={{ borderRadius: radius.lg, overflow: 'hidden' }}
-      >
-        {items.map((item, i) => (
-          <TouchableOpacity
-            key={item.id ?? i}
-            activeOpacity={0.95}
-            style={{ width: slideW }}
-            onPress={() => {
-              const id = item.restaurant?.id ?? item.restaurantId;
-              if (id) navigation.navigate('Restaurant', { id });
-            }}
-          >
-            <View style={s.bannerSlide}>
-              {(item.imageUrl ?? item.restaurant?.imageUrl) ? (
-                <Image
-                  source={{ uri: item.imageUrl ?? item.restaurant?.imageUrl }}
-                  style={StyleSheet.absoluteFillObject}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[StyleSheet.absoluteFillObject, s.bannerPlaceholder]}>
-                  <Text style={{ fontSize: 50 }}>{item.type ? '🏷️' : '🍽️'}</Text>
-                </View>
-              )}
-              <View style={s.bannerGradient} />
-
-              {/* Badge type */}
-              <View style={s.bannerTopLeft}>
-                {item.discountPct ? (
-                  <View style={[s.badge, { backgroundColor: '#ef4444' }]}>
-                    <Text style={s.badgeText}>-{item.discountPct}% OFF</Text>
-                  </View>
-                ) : item.type === 'FLASH' ? (
-                  <View style={[s.badge, { backgroundColor: '#f97316' }]}>
-                    <Text style={s.badgeText}>⚡ FLASH</Text>
-                  </View>
-                ) : item.type === 'POINTS' ? (
-                  <View style={[s.badge, { backgroundColor: '#f59e0b' }]}>
-                    <Text style={s.badgeText}>⭐ POINTS</Text>
-                  </View>
-                ) : (
-                  <View style={[s.badge, { backgroundColor: '#f59e0b' }]}>
-                    <Text style={s.badgeText}>✨ Plat du jour</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Info bas */}
-              <View style={s.bannerBottom}>
-                {item.restaurant?.name && (
-                  <Text style={s.bannerRestaurant}>{item.restaurant.name}</Text>
-                )}
-                <Text style={s.bannerTitle} numberOfLines={1}>
-                  {item.name ?? item.title ?? 'Offre spéciale'}
-                </Text>
-                {item.priceUsdCents && !item.type && (
-                  <Text style={s.bannerPrice}>{formatPrice(item.promoPrice ?? item.priceUsdCents)}</Text>
-                )}
-                {item.expiresAt && (
-                  <Text style={s.bannerExpiry}>
-                    Expire le {new Date(item.expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                  </Text>
-                )}
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Dots */}
-      {items.length > 1 && (
-        <View style={s.dots}>
-          {items.map((_, i) => (
-            <TouchableOpacity key={i} onPress={() => { scrollTo(i); resetTimer(); }}>
-              <View style={[s.dot, i === idx && s.dotActive]} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.45, duration: 750, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={[{ backgroundColor: c.surface2, borderRadius: radius.md }, style, { opacity: anim }]} />;
 }
 
-// ── Carte restaurant ──────────────────────────────────────────────────────────
+// ── Carte restaurant (style Uber Eats — full width) ───────────────────────────
 
-function RestaurantCard({ r, onPress }: { r: any; onPress: () => void }) {
-  const stars     = r.rating ? Math.round(r.rating * 10) / 10 : null;
-  const isOpen    = r.isOpen !== false;
-  const typeLabel = r.restaurantType === 'LIVRAISON'
-    ? '🛵 Livraison'
-    : r.restaurantType === 'LES_DEUX'
-      ? '🍽️ & 🛵'
-      : '🍽️ Sur place';
+function RestCard({ r, onPress }: { r: any; onPress: () => void }) {
+  const { colors: c } = useTheme();
+  const s = mkStyles(c);
+  const rating   = r.rating ? (Math.round(r.rating * 10) / 10).toFixed(1) : null;
+  const isOpen   = r.isOpen !== false;
+  const typeTag  = r.restaurantType === 'LIVRAISON' ? '🛵 Livraison' : r.restaurantType === 'LES_DEUX' ? '🍽️ & 🛵' : '🍽️ Sur place';
 
   return (
-    <TouchableOpacity style={s.restCard} onPress={onPress} activeOpacity={0.87}>
-      <View style={s.restCardImg}>
-        {r.imageUrl ? (
-          <Image source={{ uri: r.imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-        ) : (
-          <View style={[StyleSheet.absoluteFillObject, s.restCardPlaceholder]}>
-            <Text style={{ fontSize: 36 }}>🏪</Text>
+    <TouchableOpacity style={s.restCard} onPress={onPress} activeOpacity={0.9}>
+      {/* Image pleine largeur */}
+      <View style={s.restImg}>
+        {r.imageUrl
+          ? <Image source={{ uri: r.imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+          : <View style={[StyleSheet.absoluteFillObject, s.restImgPlaceholder]}><Text style={{ fontSize: 44 }}>🏪</Text></View>}
+
+        {/* Promo badge */}
+        {r.hasOffer && (
+          <View style={[s.badge, { backgroundColor: c.danger, position: 'absolute', top: 10, left: 10 }]}>
+            <Text style={s.badgeText}>Offre dispo</Text>
           </View>
         )}
+
+        {/* Type tag */}
+        <View style={s.typeTag}><Text style={s.typeTagText}>{typeTag}</Text></View>
+
+        {/* Fermé overlay */}
         {!isOpen && (
           <View style={s.closedOverlay}>
-            <Text style={s.closedText}>Fermé</Text>
+            <View style={s.closedPill}><Text style={s.closedText}>Fermé</Text></View>
           </View>
         )}
-        <View style={s.restTypeTag}>
-          <Text style={s.restTypeText}>{typeLabel}</Text>
-        </View>
       </View>
-      <View style={s.restCardBody}>
-        <Text style={s.restCardName} numberOfLines={1}>{r.name}</Text>
-        {r.cuisine && <Text style={s.restCardSub} numberOfLines={1}>{r.cuisine}</Text>}
-        <View style={s.restCardMeta}>
-          {stars ? (
-            <View style={s.restMeta}>
-              <StarIcon />
-              <Text style={s.restMetaText}>{stars.toFixed(1)}</Text>
-              {r.reviewCount ? <Text style={s.restMetaSub}>({r.reviewCount})</Text> : null}
+
+      {/* Info */}
+      <View style={s.restInfo}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.restName} numberOfLines={1}>{r.name}</Text>
+          {r.cuisine && <Text style={s.restSub} numberOfLines={1}>{r.cuisine}</Text>}
+
+          <View style={s.restMeta}>
+            {rating && (
+              <View style={s.metaChip}>
+                <IcoStar color={c.warning} />
+                <Text style={[s.metaText, { color: c.text }]}>{rating}</Text>
+                {r.reviewCount ? <Text style={s.metaSub}>({r.reviewCount})</Text> : null}
+              </View>
+            )}
+            <View style={s.metaDot} />
+            <View style={s.metaChip}>
+              <IcoClock color={c.text3} />
+              <Text style={s.metaSub}>20–35 min</Text>
             </View>
-          ) : null}
-          {r.address?.commune ? (
-            <View style={s.restMeta}>
-              <MapPinIcon />
-              <Text style={s.restMetaSub} numberOfLines={1}>{r.address.commune}</Text>
-            </View>
-          ) : null}
+            {r.address?.commune && (
+              <>
+                <View style={s.metaDot} />
+                <Text style={s.metaSub} numberOfLines={1}>{r.address.commune}</Text>
+              </>
+            )}
+          </View>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-// ── Squelette de chargement ───────────────────────────────────────────────────
+// ── Bannière promo (style Uber Eats hero card) ────────────────────────────────
 
-function Skeleton({ style }: { style?: any }) {
-  const anim = useRef(new Animated.Value(0.4)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  return <Animated.View style={[{ backgroundColor: colors.surface2, borderRadius: radius.md }, style, { opacity: anim }]} />;
+function PromoCard({ item, onPress }: { item: any; onPress: () => void }) {
+  const { colors: c } = useTheme();
+  const s = mkStyles(c);
+  const img = item.imageUrl ?? item.restaurant?.imageUrl;
+  const typeColor = item.type === 'FLASH' ? '#f97316' : item.type === 'POINTS' ? c.warning : c.danger;
+
+  return (
+    <TouchableOpacity style={s.promoCard} onPress={onPress} activeOpacity={0.9}>
+      <View style={s.promoImg}>
+        {img
+          ? <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+          : <View style={[StyleSheet.absoluteFillObject, s.promoImgPlaceholder]}><Text style={{ fontSize: 48 }}>🏷️</Text></View>}
+        <View style={s.promoGradient} />
+        {/* Badge */}
+        <View style={[s.badge, { backgroundColor: typeColor, position: 'absolute', top: 12, left: 12 }]}>
+          <Text style={s.badgeText}>
+            {item.discountPct ? `-${item.discountPct}% OFF` : item.type === 'FLASH' ? '⚡ FLASH' : item.type === 'POINTS' ? '⭐ POINTS' : '✨ Offre'}
+          </Text>
+        </View>
+      </View>
+      <View style={s.promoBody}>
+        {item.restaurant?.name && <Text style={s.promoResto}>{item.restaurant.name}</Text>}
+        <Text style={s.promoTitle} numberOfLines={1}>{item.name ?? item.title ?? 'Offre spéciale'}</Text>
+        {item.priceUsdCents && !item.type && (
+          <Text style={s.promoPrice}>{fmtPrice(item.promoPrice ?? item.priceUsdCents)}</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
 }
 
-// ── Écran principal ───────────────────────────────────────────────────────────
+// ── Section header ─────────────────────────────────────────────────────────────
+
+function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll?: () => void }) {
+  const { colors: c } = useTheme();
+  const s = mkStyles(c);
+  return (
+    <View style={s.sectionRow}>
+      <Text style={s.sectionTitle}>{title}</Text>
+      {onSeeAll && (
+        <TouchableOpacity onPress={onSeeAll} style={s.seeAllBtn}>
+          <Text style={s.seeAllText}>Tout voir</Text>
+          <IcoChevronRight color={c.accent} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// ── Écran ────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen({ navigation }: any) {
-  const { data: user }                      = useMe();
-  const { data: feed, isLoading, refetch }  = useHomeFeed();
+  const { colors: c } = useTheme();
+  const s = mkStyles(c);
+  const { data: user }                     = useMe();
+  const { data: feed, isLoading, refetch } = useHomeFeed();
+  const [activeCat, setActiveCat]          = useState('');
 
-  const bodyAnim = useRef(new Animated.Value(0)).current;
+  const fadeIn = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.spring(bodyAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true, delay: 120 } as any).start();
+    Animated.timing(fadeIn, { toValue: 1, duration: 320, useNativeDriver: true, delay: 80 }).start();
   }, []);
 
-  const hour      = new Date().getHours();
-  const greeting  = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const banners = [...(feed?.dailySpecials ?? []), ...(feed?.promoOffers ?? [])];
+  const restaurants = (feed?.popularRestaurants ?? []).filter((r: any) =>
+    activeCat === '' ? true : (r.cuisine ?? '').toLowerCase().includes(activeCat)
+  );
   const firstName = user?.firstName ?? '';
-  const banners   = [...(feed?.dailySpecials ?? []), ...(feed?.promoOffers ?? [])];
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={c.bg} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={c.accent} />}
         contentContainerStyle={s.scroll}
         stickyHeaderIndices={[0]}
       >
 
-        {/* ── HEADER STICKY ─────────────────────────────────────────────────── */}
+        {/* ── HEADER STICKY (style Uber Eats) ────────────────────────────── */}
         <View style={s.header}>
-          <View style={s.headerTop}>
-            <View>
-              <Text style={s.greetingText}>{greeting} 👋</Text>
-              <Text style={s.headerName}>
-                {firstName ? firstName : 'Bienvenue sur Delipose'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={s.avatar}
-              onPress={() => navigation.navigate('profile')}
-              activeOpacity={0.8}
-            >
+          {/* Ligne lieu */}
+          <View style={s.locRow}>
+            <IcoPin color={c.accent} />
+            <Text style={s.locLabel}>Kinshasa</Text>
+            <IcoChevronDown color={c.text3} />
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity style={s.avatar} onPress={() => navigation.navigate('profile')} activeOpacity={0.8}>
               <Text style={s.avatarText}>
                 {user ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}` : '?'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Barre de recherche décorative → Search */}
-          <TouchableOpacity
-            style={s.searchBar}
-            onPress={() => navigation.navigate('search')}
-            activeOpacity={0.8}
-          >
-            <SearchIcon />
-            <Text style={s.searchPlaceholder}>Restaurant, cuisine, quartier…</Text>
-            <View style={s.searchBtn}>
-              <Text style={s.searchBtnText}>Chercher</Text>
-            </View>
+          {/* Barre de recherche pill */}
+          <TouchableOpacity style={s.searchPill} onPress={() => navigation.navigate('search')} activeOpacity={0.85}>
+            <IcoSearch color={c.text3} />
+            <Text style={s.searchText}>Restaurants, plats, cuisines…</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── BODY ──────────────────────────────────────────────────────────── */}
-        <Animated.View style={[s.body, {
-          opacity: bodyAnim,
-          transform: [{ translateY: bodyAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-        }]}>
+        {/* ── BODY ───────────────────────────────────────────────────────── */}
+        <Animated.View style={{ opacity: fadeIn }}>
 
-          {/* Points fidélité */}
-          {user && (
-            <TouchableOpacity
-              style={s.pointsCard}
-              onPress={() => navigation.navigate('reservations')}
-              activeOpacity={0.85}
-            >
-              <View>
+          {/* Points fidélité — banner fin style Uber Cash */}
+          {user && (user.points ?? 0) > 0 && (
+            <TouchableOpacity style={s.pointsBanner} onPress={() => navigation.navigate('reservations')} activeOpacity={0.85}>
+              <Text style={{ fontSize: 18 }}>⭐</Text>
+              <View style={{ flex: 1 }}>
                 <Text style={s.pointsLabel}>Vos points fidélité</Text>
-                <Text style={s.pointsValue}>
-                  {(user.points ?? 0).toLocaleString()}{' '}
-                  <Text style={s.pointsUnit}>pts</Text>
-                </Text>
+                <Text style={s.pointsVal}>{(user.points ?? 0).toLocaleString()} pts disponibles</Text>
               </View>
-              <View style={s.pointsIcon}>
-                <Text style={{ fontSize: 24 }}>⭐</Text>
-              </View>
+              <IcoChevronRight color={c.accent} />
             </TouchableOpacity>
           )}
 
-          {/* Grand carrousel promos/plats du jour */}
+          {/* Carrousel promos */}
           {isLoading ? (
-            <Skeleton style={{ height: 200, borderRadius: radius.lg }} />
+            <View style={s.promoRow}>
+              <Skeleton style={{ width: SW * 0.72, height: 190 }} />
+              <Skeleton style={{ width: SW * 0.72, height: 190 }} />
+            </View>
           ) : banners.length > 0 ? (
-            <AutoCarousel items={banners} navigation={navigation} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.promoRow}>
+              {banners.map((item: any, i: number) => (
+                <PromoCard
+                  key={item.id ?? i}
+                  item={item}
+                  onPress={() => {
+                    const id = item.restaurant?.id ?? item.restaurantId;
+                    if (id) navigation.navigate('Restaurant', { id });
+                  }}
+                />
+              ))}
+            </ScrollView>
           ) : null}
 
-          {/* Catégories */}
-          <View>
-            <Text style={s.sectionTitle}>Parcourir</Text>
-            <View style={s.catsGrid}>
-              {CATS.map(cat => (
+          {/* Catégories — scroll horizontal */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catRow}>
+            {CATS.map(cat => {
+              const active = activeCat === cat.q;
+              return (
                 <TouchableOpacity
                   key={cat.label}
-                  style={s.catCell}
-                  onPress={() => navigation.navigate('search', { q: cat.q || cat.label })}
+                  style={[s.catPill, active && s.catPillActive]}
+                  onPress={() => {
+                    if (cat.q === '') {
+                      setActiveCat('');
+                    } else if (activeCat === cat.q) {
+                      navigation.navigate('search', { q: cat.q });
+                    } else {
+                      setActiveCat(cat.q);
+                    }
+                  }}
                   activeOpacity={0.8}
                 >
                   <Text style={s.catEmoji}>{cat.emoji}</Text>
-                  <Text style={s.catLabel}>{cat.label}</Text>
+                  <Text style={[s.catLabel, active && s.catLabelActive]}>{cat.label}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+              );
+            })}
+          </ScrollView>
+
+          {/* Divider */}
+          <View style={s.divider} />
 
           {/* Restaurants populaires */}
           {isLoading ? (
-            <View>
-              <Text style={s.sectionTitle}>Restaurants populaires</Text>
-              <View style={s.restGrid}>
-                <Skeleton style={{ height: 200, flex: 1 }} />
-                <Skeleton style={{ height: 200, flex: 1 }} />
-              </View>
+            <View style={s.listPad}>
+              <SectionHeader title="Restaurants populaires" />
+              {[1, 2, 3].map(i => (
+                <View key={i} style={{ marginBottom: 20 }}>
+                  <Skeleton style={{ height: 180, borderRadius: radius.lg, marginBottom: 10 }} />
+                  <Skeleton style={{ height: 14, width: '60%', marginBottom: 6 }} />
+                  <Skeleton style={{ height: 12, width: '40%' }} />
+                </View>
+              ))}
             </View>
-          ) : (feed?.popularRestaurants?.length ?? 0) > 0 ? (
-            <View>
-              <View style={s.sectionRow}>
-                <Text style={s.sectionTitle}>Restaurants populaires</Text>
-                <TouchableOpacity style={s.seeAll} onPress={() => navigation.navigate('search')}>
-                  <Text style={s.seeAllText}>Tout voir</Text>
-                  <ChevronRightIcon />
-                </TouchableOpacity>
-              </View>
-              <View style={s.restGrid}>
-                {feed!.popularRestaurants.map((r: any) => (
-                  <RestaurantCard
-                    key={r.id}
-                    r={r}
-                    onPress={() => navigation.navigate('Restaurant', { id: r.id })}
-                  />
-                ))}
-              </View>
+          ) : restaurants.length > 0 ? (
+            <View style={s.listPad}>
+              <SectionHeader
+                title="Restaurants populaires"
+                onSeeAll={() => navigation.navigate('search')}
+              />
+              {restaurants.map((r: any) => (
+                <RestCard
+                  key={r.id}
+                  r={r}
+                  onPress={() => navigation.navigate('Restaurant', { id: r.id })}
+                />
+              ))}
             </View>
           ) : null}
 
           {/* Plats du jour */}
-          {isLoading ? null : (feed?.dailySpecials?.length ?? 0) > 0 ? (
-            <View>
-              <View style={s.sectionRow}>
-                <Text style={s.sectionTitle}>Plats du jour ✨</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('search')}>
-                  <Text style={s.seeAllText}>Voir tout →</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={s.restGrid}>
+          {!isLoading && (feed?.dailySpecials?.length ?? 0) > 0 && (
+            <View style={s.listPad}>
+              <SectionHeader
+                title="Plats du jour ✨"
+                onSeeAll={() => navigation.navigate('search')}
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                 {feed!.dailySpecials.map((item: any) => (
                   <TouchableOpacity
                     key={item.id}
                     style={s.dishCard}
                     onPress={() => navigation.navigate('Restaurant', { id: item.restaurant.id })}
-                    activeOpacity={0.87}
+                    activeOpacity={0.88}
                   >
-                    <View style={s.dishCardImg}>
-                      {item.imageUrl ? (
-                        <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-                      ) : (
-                        <View style={[StyleSheet.absoluteFillObject, s.dishPlaceholder]}>
-                          <Text style={{ fontSize: 28 }}>🍽️</Text>
-                        </View>
-                      )}
-                      <View style={[s.badge, s.badgeTopLeft, { backgroundColor: '#f59e0b' }]}>
-                        <Text style={s.badgeText}>Aujourd'hui</Text>
-                      </View>
+                    <View style={s.dishImg}>
+                      {item.imageUrl
+                        ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                        : <View style={[StyleSheet.absoluteFillObject, s.dishImgPlaceholder]}><Text style={{ fontSize: 30 }}>🍽️</Text></View>}
                       {item.promoPrice && (
-                        <View style={[s.badge, s.badgeTopRight, { backgroundColor: '#ef4444' }]}>
+                        <View style={[s.badge, { backgroundColor: c.danger, position: 'absolute', top: 8, left: 8 }]}>
                           <Text style={s.badgeText}>PROMO</Text>
                         </View>
                       )}
                     </View>
-                    <View style={s.dishCardBody}>
-                      <Text style={s.dishName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={s.dishPrice}>{formatPrice(item.promoPrice ?? item.priceUsdCents)}</Text>
+                    <View style={s.dishBody}>
+                      <Text style={s.dishName} numberOfLines={2}>{item.name}</Text>
+                      <Text style={s.dishPrice}>{fmtPrice(item.promoPrice ?? item.priceUsdCents)}</Text>
                       <Text style={s.dishResto} numberOfLines={1}>{item.restaurant.name}</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Offres & Promos */}
-          {!isLoading && (feed?.promoOffers?.length ?? 0) > 0 && (
-            <View>
-              <Text style={s.sectionTitle}>Offres & Promos 🏷️</Text>
-              <View style={s.offersList}>
-                {feed!.promoOffers.map((offer: any) => (
-                  <TouchableOpacity
-                    key={offer.id}
-                    style={s.offerCard}
-                    onPress={() => offer.restaurant?.id && navigation.navigate('Restaurant', { id: offer.restaurant.id })}
-                    activeOpacity={0.87}
-                  >
-                    <View style={s.offerThumb}>
-                      {offer.restaurant?.imageUrl ? (
-                        <Image source={{ uri: offer.restaurant.imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-                      ) : (
-                        <Text style={{ fontSize: 24 }}>
-                          {offer.type === 'FLASH' ? '⚡' : offer.type === 'POINTS' ? '⭐' : '🏷️'}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={s.offerBody}>
-                      <View style={s.offerBadges}>
-                        {offer.discountPct ? (
-                          <View style={[s.badge, { backgroundColor: '#ef4444' }]}>
-                            <Text style={s.badgeText}>-{offer.discountPct}%</Text>
-                          </View>
-                        ) : null}
-                        {offer.type === 'FLASH' ? (
-                          <View style={[s.badge, { backgroundColor: '#f97316' }]}>
-                            <Text style={s.badgeText}>⚡ FLASH</Text>
-                          </View>
-                        ) : offer.type === 'POINTS' ? (
-                          <View style={[s.badge, { backgroundColor: '#f59e0b' }]}>
-                            <Text style={s.badgeText}>⭐ POINTS</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text style={s.offerTitle} numberOfLines={1}>
-                        {offer.title ?? offer.description ?? 'Offre spéciale'}
-                      </Text>
-                      <Text style={s.offerResto} numberOfLines={1}>{offer.restaurant?.name}</Text>
-                    </View>
-                    <ChevronRightIcon />
-                  </TouchableOpacity>
-                ))}
-              </View>
+              </ScrollView>
             </View>
           )}
 
           {/* Empty state */}
-          {!isLoading &&
-            !feed?.dailySpecials?.length &&
-            !feed?.promoOffers?.length &&
-            !feed?.popularRestaurants?.length && (
-            <View style={s.emptyState}>
-              <Text style={s.emptyEmoji}>🍽️</Text>
+          {!isLoading && !feed?.popularRestaurants?.length && !feed?.dailySpecials?.length && (
+            <View style={s.empty}>
+              <Text style={{ fontSize: 56, marginBottom: 16 }}>🍽️</Text>
               <Text style={s.emptyTitle}>Découvrez Kinshasa</Text>
-              <Text style={s.emptyDesc}>Les restaurants arrivent bientôt</Text>
-              <TouchableOpacity
-                style={s.emptyBtn}
-                onPress={() => navigation.navigate('search')}
-                activeOpacity={0.85}
-              >
-                <Text style={s.emptyBtnText}>Explorer les restaurants</Text>
+              <Text style={s.emptySub}>Les restaurants arrivent bientôt</Text>
+              <TouchableOpacity style={s.emptyBtn} onPress={() => navigation.navigate('search')} activeOpacity={0.85}>
+                <Text style={s.emptyBtnText}>Explorer</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -528,167 +412,146 @@ export default function HomeScreen({ navigation }: any) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:             { flex: 1, backgroundColor: colors.bg },
-  scroll:           { paddingBottom: 100 },
+function mkStyles(c: any) {
+  return StyleSheet.create({
+    safe:   { flex: 1, backgroundColor: c.bg },
+    scroll: { paddingBottom: 100 },
 
-  // Header sticky
-  header:           {
-    backgroundColor: 'rgba(13,14,30,0.96)',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  headerTop:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  greetingText:     { fontSize: 11, fontWeight: '700', color: colors.text3, letterSpacing: 0.3 },
-  headerName:       { fontSize: 18, fontWeight: '900', color: colors.text, letterSpacing: -0.3 },
-  avatar:           {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.accent,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText:       { color: colors.white, fontWeight: '900', fontSize: 13 },
-  searchBar:        {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface2, borderRadius: radius.lg,
-    paddingHorizontal: spacing.md, paddingVertical: 11,
-  },
-  searchPlaceholder: { flex: 1, fontSize: 13, color: colors.text3 },
-  searchBtn:        {
-    backgroundColor: colors.accent, borderRadius: radius.md,
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  searchBtnText:    { color: colors.white, fontSize: 11, fontWeight: '700' },
+    // Header Uber Eats
+    header: {
+      backgroundColor: c.bg,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      paddingBottom: 12,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    locRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    locLabel:  { fontSize: 15, fontWeight: '800', color: c.text },
+    avatar:    {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: c.accent,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    avatarText: { color: c.black, fontWeight: '900', fontSize: 12 },
 
-  // Body
-  body:             { padding: spacing.lg, gap: spacing.xl },
+    // Search pill pleine largeur
+    searchPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: c.surface,
+      borderRadius: radius.full,
+      paddingHorizontal: 16, paddingVertical: 13,
+      borderWidth: 1, borderColor: c.border,
+    },
+    searchText: { fontSize: 14, color: c.text3, flex: 1 },
 
-  // Points
-  pointsCard:       {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'space-between',
-    ...shadow.card,
-  },
-  pointsLabel:      { fontSize: 11, color: colors.text3, fontWeight: '600', marginBottom: 4 },
-  pointsValue:      { fontSize: 26, fontWeight: '900', color: colors.text },
-  pointsUnit:       { fontSize: 14, fontWeight: '600', color: colors.text3 },
-  pointsIcon:       {
-    width: 48, height: 48, borderRadius: radius.md,
-    backgroundColor: colors.surface2,
-    alignItems: 'center', justifyContent: 'center',
-  },
+    // Points banner fin (style Uber Cash)
+    pointsBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: c.surface,
+      marginHorizontal: 20, marginTop: 16,
+      borderRadius: radius.lg,
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderWidth: 1, borderColor: c.accentSoft,
+    },
+    pointsLabel: { fontSize: 11, color: c.text3, fontWeight: '600' },
+    pointsVal:   { fontSize: 13, fontWeight: '800', color: c.accent, marginTop: 1 },
 
-  // Carrousel
-  bannerSlide:      { height: 200, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surface2 },
-  bannerPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  bannerGradient:   {
-    ...StyleSheet.absoluteFillObject,
-    // simulate gradient with a semi-transparent overlay
-    backgroundColor: 'transparent',
-  },
-  bannerTopLeft:    { position: 'absolute', top: 12, left: 12, flexDirection: 'row', gap: 6 },
-  bannerBottom:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14,
-    backgroundColor: 'rgba(0,0,0,0)',
-  },
-  bannerRestaurant: { fontSize: 10, color: 'rgba(255,255,255,0.65)', fontWeight: '600', marginBottom: 2 },
-  bannerTitle:      { fontSize: 17, fontWeight: '900', color: colors.white, lineHeight: 22 },
-  bannerPrice:      { fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: '600', marginTop: 3 },
-  bannerExpiry:     { fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  dots:             { flexDirection: 'row', justifyContent: 'center', marginTop: 8, gap: 6 },
-  dot:              { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)' },
-  dotActive:        { width: 18, backgroundColor: colors.accent },
+    // Carrousel promos
+    promoRow: { paddingHorizontal: 20, gap: 12, paddingTop: 16, paddingBottom: 4 },
+    promoCard: {
+      width: SW * 0.72, borderRadius: radius.lg, overflow: 'hidden',
+      backgroundColor: c.surface, ...shadow.card,
+    },
+    promoImg:         { height: 140 },
+    promoImgPlaceholder: { backgroundColor: c.surface2, alignItems: 'center', justifyContent: 'center' },
+    promoGradient:    {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    promoBody:  { padding: 12 },
+    promoResto: { fontSize: 10, color: c.text3, fontWeight: '600', marginBottom: 2 },
+    promoTitle: { fontSize: 14, fontWeight: '800', color: c.text },
+    promoPrice: { fontSize: 12, color: c.accent, fontWeight: '700', marginTop: 4 },
 
-  // Badges
-  badge:            { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
-  badgeText:        { color: colors.white, fontSize: 9, fontWeight: '900' },
-  badgeTopLeft:     { position: 'absolute', top: 8, left: 8 },
-  badgeTopRight:    { position: 'absolute', top: 8, right: 8 },
+    // Catégories scroll horizontal
+    catRow:      { paddingHorizontal: 20, gap: 8, paddingTop: 16, paddingBottom: 8 },
+    catPill:     {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      paddingHorizontal: 14, paddingVertical: 8,
+      borderRadius: radius.full,
+      backgroundColor: c.surface,
+      borderWidth: 1, borderColor: c.border,
+    },
+    catPillActive: {
+      backgroundColor: c.accent,
+      borderColor: c.accent,
+    },
+    catEmoji:      { fontSize: 15 },
+    catLabel:      { fontSize: 13, fontWeight: '700', color: c.text2 },
+    catLabelActive: { color: c.black },
 
-  // Section
-  sectionTitle:     { fontSize: 15, fontWeight: '900', color: colors.text },
-  sectionRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  seeAll:           { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  seeAllText:       { color: colors.accent, fontSize: 12, fontWeight: '700' },
+    divider:  { height: 8, backgroundColor: c.surface, marginTop: 8 },
 
-  // Catégories
-  catsGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  catCell:          {
-    width: '22%', alignItems: 'center', paddingVertical: 12,
-    borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.card,
-  },
-  catEmoji:         { fontSize: 22 },
-  catLabel:         { fontSize: 9, fontWeight: '700', color: colors.text2, marginTop: 4 },
+    // Liste restaurants
+    listPad:  { paddingHorizontal: 20, paddingTop: 20, gap: 0 },
+    sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+    sectionTitle: { fontSize: 18, fontWeight: '900', color: c.text },
+    seeAllBtn:  { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    seeAllText: { fontSize: 13, color: c.accent, fontWeight: '700' },
 
-  // Restaurant grid
-  restGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
-  restCard:         {
-    width: (SCREEN_W - spacing.lg * 2 - 10) / 2,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    overflow: 'hidden', ...shadow.card,
-  },
-  restCardImg:      { height: 130 },
-  restCardPlaceholder: { backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  closedOverlay:    {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  closedText:       { color: colors.white, fontSize: 11, fontWeight: '900',
-    backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full,
-  },
-  restTypeTag:      {
-    position: 'absolute', top: 8, right: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: radius.full,
-    paddingHorizontal: 6, paddingVertical: 2,
-  },
-  restTypeText:     { color: colors.white, fontSize: 8, fontWeight: '700' },
-  restCardBody:     { padding: 10 },
-  restCardName:     { fontSize: 13, fontWeight: '900', color: colors.text },
-  restCardSub:      { fontSize: 10, color: colors.text3, marginTop: 1 },
-  restCardMeta:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
-  restMeta:         { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  restMetaText:     { fontSize: 11, fontWeight: '700', color: colors.text },
-  restMetaSub:      { fontSize: 9, color: colors.text3 },
+    // Carte restaurant full width (Uber Eats style)
+    restCard:   {
+      marginBottom: 24,
+      borderRadius: radius.xl,
+      overflow: 'hidden',
+      backgroundColor: c.surface,
+      ...shadow.card,
+    },
+    restImg:    { height: 180 },
+    restImgPlaceholder: { backgroundColor: c.surface2, alignItems: 'center', justifyContent: 'center' },
+    typeTag:    {
+      position: 'absolute', bottom: 10, right: 10,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      borderRadius: radius.full,
+      paddingHorizontal: 8, paddingVertical: 3,
+    },
+    typeTagText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+    closedOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+    closedPill: { backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 5 },
+    closedText: { color: '#fff', fontSize: 12, fontWeight: '900' },
 
-  // Plats du jour
-  dishCard:         {
-    width: (SCREEN_W - spacing.lg * 2 - 10) / 2,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    overflow: 'hidden', ...shadow.card,
-  },
-  dishCardImg:      { height: 110 },
-  dishPlaceholder:  { backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  dishCardBody:     { padding: 10 },
-  dishName:         { fontSize: 12, fontWeight: '900', color: colors.text },
-  dishPrice:        { fontSize: 12, fontWeight: '700', color: colors.accent, marginTop: 2 },
-  dishResto:        { fontSize: 10, color: colors.text3, marginTop: 2 },
+    restInfo:  { padding: 14 },
+    restName:  { fontSize: 16, fontWeight: '900', color: c.text, marginBottom: 3 },
+    restSub:   { fontSize: 12, color: c.text3, marginBottom: 8 },
+    restMeta:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    metaChip:  { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    metaText:  { fontSize: 12, fontWeight: '700' },
+    metaSub:   { fontSize: 11, color: c.text3 },
+    metaDot:   { width: 3, height: 3, borderRadius: 2, backgroundColor: c.text3 },
 
-  // Offres
-  offersList:       { gap: 8, marginTop: 4 },
-  offerCard:        {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, ...shadow.card,
-  },
-  offerThumb:       {
-    width: 64, height: 64, borderRadius: radius.md,
-    backgroundColor: colors.surface2, overflow: 'hidden',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  offerBody:        { flex: 1, gap: 4 },
-  offerBadges:      { flexDirection: 'row', gap: 4 },
-  offerTitle:       { fontSize: 13, fontWeight: '900', color: colors.text },
-  offerResto:       { fontSize: 11, color: colors.text3 },
+    // Plats du jour
+    dishCard: {
+      width: 150, borderRadius: radius.lg, overflow: 'hidden',
+      backgroundColor: c.surface, ...shadow.card,
+    },
+    dishImg:  { height: 110 },
+    dishImgPlaceholder: { backgroundColor: c.surface2, alignItems: 'center', justifyContent: 'center' },
+    dishBody: { padding: 10 },
+    dishName: { fontSize: 12, fontWeight: '800', color: c.text, lineHeight: 16 },
+    dishPrice: { fontSize: 12, fontWeight: '700', color: c.accent, marginTop: 4 },
+    dishResto: { fontSize: 10, color: c.text3, marginTop: 2 },
 
-  // Empty
-  emptyState:       { alignItems: 'center', paddingTop: 40, gap: 12 },
-  emptyEmoji:       { fontSize: 52 },
-  emptyTitle:       { fontSize: 18, fontWeight: '900', color: colors.text },
-  emptyDesc:        { fontSize: 13, color: colors.text3 },
-  emptyBtn:         {
-    backgroundColor: colors.accent, borderRadius: radius.md,
-    paddingHorizontal: 24, paddingVertical: 12, marginTop: 4,
-  },
-  emptyBtnText:     { color: colors.white, fontWeight: '700', fontSize: 14 },
-});
+    // Badges
+    badge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
+    badgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
+
+    // Empty
+    empty:     { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40, gap: 8 },
+    emptyTitle: { fontSize: 20, fontWeight: '900', color: c.text },
+    emptySub:   { fontSize: 14, color: c.text3, textAlign: 'center' },
+    emptyBtn:   { marginTop: 16, backgroundColor: c.accent, borderRadius: radius.full, paddingHorizontal: 32, paddingVertical: 14 },
+    emptyBtnText: { color: c.black, fontWeight: '900', fontSize: 15 },
+  });
+}
