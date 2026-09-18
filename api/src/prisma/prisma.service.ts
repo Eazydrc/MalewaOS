@@ -20,11 +20,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('DB connection timeout after 8s')), 8000),
+    );
     try {
-      await this.$connect();
+      await Promise.race([this.$connect(), timeout]);
       this.logger.log('Database connected');
     } catch (err) {
-      // Non-fatal : l'app démarre et le healthcheck passe même si la DB est momentanément indisponible
       this.logger.error(`Database connection failed (non-fatal): ${err?.message}`);
     }
   }
