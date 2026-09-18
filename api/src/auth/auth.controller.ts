@@ -132,6 +132,10 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     const code = await this.auth.googleLoginWithCode(req.user as any);
+    const state = (req.query?.state as string) ?? '';
+    if (state === 'mobile') {
+      return res.redirect(`delipose://oauth?code=${code}`);
+    }
     const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:4001';
     res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
   }
