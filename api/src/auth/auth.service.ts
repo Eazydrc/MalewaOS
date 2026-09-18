@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ import { randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import {
   RegisterDto,
   LoginDto,
@@ -33,11 +35,12 @@ const MFA_ROLES = new Set<string>(['ADMIN', 'SUPER_ADMIN']);
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma:  PrismaService,
-    private jwt:     JwtService,
-    private config:  ConfigService,
-    private redis:   RedisService,
-    private mail:    MailService,
+    private prisma:     PrismaService,
+    private jwt:        JwtService,
+    private config:     ConfigService,
+    private redis:      RedisService,
+    private mail:       MailService,
+    private whatsapp:   WhatsappService,
   ) {}
 
   // ── Inscription ───────────────────────────────────────────────────────────
@@ -80,38 +83,8 @@ export class AuthService {
 
   // ── Inscription livreur ───────────────────────────────────────────────────
 
-  async registerDriver(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email }, select: { id: true } });
-    if (existing) throw new ConflictException('Email déjà utilisé');
-
-    const hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const user = await this.prisma.user.create({
-      data: {
-        firstName:     dto.firstName,
-        lastName:      dto.lastName,
-        email:         dto.email,
-        phone:         dto.phone,
-        password:      hash,
-        role:          'LIVREUR',
-        points:        0,
-        emailVerified: false,
-        isActive:      false,
-      },
-      select: { id: true, email: true, firstName: true },
-    });
-
-    const code = this.generateOtp();
-    await this.storeOtp(dto.email, code, 'verify_email');
-    try {
-      await this.mail.sendOtp(dto.email, user.firstName, code);
-    } catch (mailErr) {
-      process.stderr.write(`[MAIL] sendOtp failed: ${mailErr?.message}\n`);
-    }
-
-    return {
-      message: 'Compte livreur créé ! Vérifiez votre email pour activer votre compte.',
-      email:   dto.email,
-    };
+  async registerDriver(_dto: RegisterDto): Promise<never> {
+    throw new ForbiddenException('Les comptes livreurs sont créés uniquement par un administrateur');
   }
 
   // ── Vérification email ────────────────────────────────────────────────────
@@ -186,19 +159,6 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Identifiants incorrects');
-
-    if (MFA_ROLES.has(user.role)) {
-      const mfaToken = randomBytes(32).toString('hex');
-      await this.redis.set(
-        `mfa:${mfaToken}`,
-        JSON.stringify({ userId: user.id, email: user.email, role: user.role }),
-        MFA_TTL,
-      );
-      const code = this.generateOtp();
-      await this.storeOtp(user.email, code, 'mfa');
-      await this.mail.sendOtp(user.email, user.firstName, code);
-      return { mfaRequired: true, mfaToken };
-    }
 
     return this.issueTokens(user.id, user.email, user.role);
   }
