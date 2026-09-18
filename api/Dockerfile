@@ -13,6 +13,8 @@ COPY . .
 
 RUN npx prisma generate && npm run build
 
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+
 EXPOSE 3000
 
 COPY migrate-prod.js ./migrate-prod.js
