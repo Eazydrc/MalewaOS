@@ -17,4 +17,4 @@ EXPOSE 3000
 
 COPY migrate-prod.js ./migrate-prod.js
 
-CMD ["/bin/sh", "-c", "node migrate-prod.js && exec node dist/src/main"]
+CMD ["/bin/sh", "-c", "node migrate-prod.js; exec node dist/src/main"]

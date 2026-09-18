@@ -5,9 +5,17 @@
  */
 const { PrismaClient } = require('@prisma/client');
 
+// Timeout global : si la migration bloque plus de 90s, on continue quand même
+const migrationTimeout = setTimeout(() => {
+  console.error('[MIGRATE] TIMEOUT after 90s — skipping, app will start anyway');
+  process.exit(0);
+}, 90_000);
+
 async function run() {
   const prisma = new PrismaClient();
   console.log('[MIGRATE] Starting production migration...');
+  // Limite chaque statement à 25s max pour éviter les locks indéfinis
+  await prisma.$executeRawUnsafe('SET statement_timeout = 25000').catch(() => {});
 
   const steps = [
     // Enum values — doivent tourner HORS transaction sur vieux PG, mais PG14+ OK
@@ -275,9 +283,11 @@ async function run() {
 
   console.log(`[MIGRATE] Done — ${ok} OK, ${fail} errors`);
   await prisma.$disconnect();
+  clearTimeout(migrationTimeout);
 }
 
 run().catch(e => {
   console.error('[MIGRATE] Fatal:', e.message);
+  clearTimeout(migrationTimeout);
   process.exit(0); // Continue even if migration fails
 });
